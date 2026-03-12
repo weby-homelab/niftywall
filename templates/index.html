@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFTables Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            800: '#1f2937',
+                            900: '#111827',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    NFTables Dashboard
+                </h1>
+                <p class="text-gray-400 mt-1">Live Firewall Configuration</p>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="fetchRules()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-md transition-colors text-sm font-medium text-gray-300">
+                    Refresh
+                </button>
+                <button onclick="backupRules()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-md transition-colors text-sm font-medium text-white shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                    Backup Rules
+                </button>
+                <button onclick="window.location.href='/logout'" class="px-4 py-2 bg-gray-800/80 hover:bg-red-900/40 border border-gray-700 hover:border-red-500/50 text-gray-400 hover:text-red-400 rounded-md transition-all text-sm font-medium">
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <div id="loading" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin h-8 w-8 mx-auto mb-4 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading ruleset...
+        </div>
+
+        <div id="error" class="hidden glass border-red-500/50 text-red-400 p-4 rounded-lg mb-8"></div>
+        <div id="success" class="hidden glass border-emerald-500/50 text-emerald-400 p-4 rounded-lg mb-8"></div>
+
+        <main id="rules-container" class="hidden space-y-8">
+            <!-- Content will be injected here by JS -->
+        </main>
+
+        <footer class="mt-12 text-center text-sm text-gray-500 pb-8">
+            © 2026 Weby Homelab. Running locally.
+        </footer>
+    </div>
+
+    <script>
+        async function fetchRules() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('rules-container').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+            document.getElementById('success').classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/ruleset');
+                if (!res.ok) throw new Error('Failed to fetch rules');
+                const data = await res.json();
+                renderRules(data);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        async function backupRules() {
+            try {
+                const res = await fetch('/api/backup', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Backup failed');
+                
+                const successEl = document.getElementById('success');
+                successEl.textContent = data.message;
+                successEl.classList.remove('hidden');
+                setTimeout(() => successEl.classList.add('hidden'), 5000);
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        function showError(msg) {
+            const errEl = document.getElementById('error');
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+        }
+
+        function renderRules(data) {
+            const container = document.getElementById('rules-container');
+            container.innerHTML = '';
+            
+            if (!data.nftables || !Array.isArray(data.nftables)) {
+                container.innerHTML = '<div class="glass p-8 text-center rounded-xl text-gray-400">No nftables structure found or firewall is empty.</div>';
+                container.classList.remove('hidden');
+                return;
+            }
+
+            // Group by Table
+            const tables = data.nftables.filter(item => item.table);
+            const chains = data.nftables.filter(item => item.chain);
+            const rules = data.nftables.filter(item => item.rule);
+
+            tables.forEach(tObj => {
+                const t = tObj.table;
+                const tableSection = document.createElement('div');
+                tableSection.className = 'glass rounded-xl overflow-hidden';
+                
+                let html = `
+                    <div class="bg-gray-800/80 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
+                            <span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded text-gray-300">${t.family}</span>
+                            Table: ${t.name}
+                        </h2>
+                    </div>
+                    <div class="p-6 space-y-6">
+                `;
+
+                const tableChains = chains.filter(cObj => cObj.chain.table === t.name && cObj.chain.family === t.family);
+                
+                tableChains.forEach(cObj => {
+                    const c = cObj.chain;
+                    const chainRules = rules.filter(rObj => rObj.rule.table === t.name && rObj.rule.chain === c.name && rObj.rule.family === t.family);
+                    
+                    html += `
+                        <div class="border border-gray-700 rounded-lg bg-gray-800/30">
+                            <div class="px-4 py-3 bg-gray-800/50 border-b border-gray-700 flex justify-between items-center">
+                                <div>
+                                    <h3 class="font-medium text-emerald-400 font-mono">Chain: ${c.name}</h3>
+                                    ${c.type ? `<p class="text-xs text-gray-400 mt-1">Hook: ${c.hook} | Priority: ${c.priority} | Policy: <span class="${c.policy === 'accept' ? 'text-emerald-500' : 'text-red-500'}">${c.policy}</span></p>` : ''}
+                                </div>
+                                <span class="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded-full">${chainRules.length} rules</span>
+                            </div>
+                            <div class="p-0">
+                                ${chainRules.length > 0 ? `
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-700">
+                                            <tr>
+                                                <th class="px-4 py-3 w-16">#</th>
+                                                <th class="px-4 py-3">Expression</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${chainRules.map(rObj => {
+                                                // Simplify the complex JSON expression for display
+                                                let exprText = JSON.stringify(rObj.rule.expr).replace(/[\[\]"{}]/g, ' ').trim();
+                                                // Highlight common ports and actions
+                                                exprText = exprText.replace(/accept/g, '<span class="text-emerald-400 font-bold">accept</span>');
+                                                exprText = exprText.replace(/drop/g, '<span class="text-red-400 font-bold">drop</span>');
+                                                exprText = exprText.replace(/masquerade/g, '<span class="text-blue-400 font-bold">masquerade</span>');
+                                                
+                                                return `
+                                                <tr class="border-b border-gray-700/50 last:border-0 hover:bg-gray-800/50 transition-colors">
+                                                    <td class="px-4 py-3 text-gray-500 font-mono">${rObj.rule.handle}</td>
+                                                    <td class="px-4 py-3 font-mono text-gray-300 break-all">${exprText}</td>
+                                                </tr>
+                                            `}).join('')}
+                                        </tbody>
+                                    </table>
+                                ` : '<div class="px-4 py-3 text-sm text-gray-500 italic">No rules in this chain.</div>'}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                tableSection.innerHTML = html;
+                container.appendChild(tableSection);
+            });
+
+            container.classList.remove('hidden');
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', fetchRules);
+    </script>
+</body>
+</html>
