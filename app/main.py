@@ -7,18 +7,20 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.nft_handler import NftablesHandler
 from app.auth import auth_router, get_current_user
+from app.fail2ban_parser import Fail2BanParser
 
 app = FastAPI(title="NiftyWall")
 
 # Include Authentication Router
 app.include_router(auth_router)
 
-# Initialize NFTables handler
+# Initialize handlers
 nft = NftablesHandler()
+f2b = Fail2BanParser()
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
@@ -32,11 +34,36 @@ class PortRequest(BaseModel):
     port: int
     protocol: str = "tcp"
 
+class AdvancedRuleRequest(BaseModel):
+    family: str = "inet"
+    table: str = "filter"
+    chain: str = "input"
+    protocol: str = "tcp"
+    ports: str = ""
+    source: str = "any"
+    action: str = "accept"
+    rate_enabled: bool = False
+    rate: int = 30
+    unit: str = "second"
+    burst: int = 50
+
+class NATRequest(BaseModel):
+    family: str = "ip"
+    table: str = "nat"
+    chain: str = "PREROUTING"
+    protocol: str = "tcp"
+    external_port: int
+    internal_ip: str
+    internal_port: Optional[int] = None
+
 class SetElementRequest(BaseModel):
     family: str
     table: str
     set_name: str
     element: str
+
+class IPListRequest(BaseModel):
+    ips: List[str]
 
 def log_action(user: str, action: str, details: str):
     log_entry = {
@@ -105,6 +132,37 @@ async def add_port(req: PortRequest, user: str = Depends(get_current_user)):
         return {"status": "success", "message": f"Port {req.port}/{req.protocol} opened successfully."}
     raise HTTPException(status_code=500, detail="Failed to open port.")
 
+@app.post("/api/ruleset/advanced")
+async def add_advanced_rule(req: AdvancedRuleRequest, user: str = Depends(get_current_user)):
+    # Very basic safety check to prevent accidental SSH lockout
+    if "22" in req.ports or "54322" in req.ports:
+        if req.action == "drop" or req.rate_enabled:
+            raise HTTPException(status_code=400, detail="Safety check: You cannot drop or strictly rate-limit SSH ports via Dashboard.")
+            
+    res = nft.add_advanced_rule(
+        req.family, req.table, req.chain, req.protocol, req.ports, 
+        req.source, req.action, req.rate_enabled, req.rate, req.unit, req.burst
+    )
+    if res["success"]:
+        details = f"Rule: {req.protocol} {req.ports} from {req.source} -> {req.action}"
+        if req.rate_enabled:
+            details += f" (Limit: {req.rate}/{req.unit})"
+        log_action(user, "ADD_RULE", details)
+        return {"status": "success", "message": "Rule applied successfully."}
+    raise HTTPException(status_code=500, detail=res["message"])
+
+@app.post("/api/ruleset/nat")
+async def add_nat_rule(req: NATRequest, user: str = Depends(get_current_user)):
+    res = nft.add_dnat_rule(
+        req.family, req.table, req.chain, req.protocol, 
+        req.external_port, req.internal_ip, req.internal_port
+    )
+    if res["success"]:
+        details = f"NAT: {req.protocol} {req.external_port} -> {req.internal_ip}:{req.internal_port or req.external_port}"
+        log_action(user, "ADD_NAT", details)
+        return {"status": "success", "message": "NAT Rule applied successfully."}
+    raise HTTPException(status_code=500, detail=res["message"])
+
 @app.post("/api/ruleset/panic")
 async def panic_mode(user: str = Depends(get_current_user)):
     success = nft.apply_panic_mode()
@@ -144,6 +202,12 @@ async def get_audit_log(user: str = Depends(get_current_user)):
             for line in f:
                 logs.append(json.loads(line))
     return logs[::-1]
+
+@app.post("/api/fail2ban/info")
+async def get_fail2ban_info(req: IPListRequest, user: str = Depends(get_current_user)):
+    """Fetch ban reasons from fail2ban log for given IPs."""
+    info = f2b.get_ban_info_for_ips(req.ips)
+    return info
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8080, reload=True)

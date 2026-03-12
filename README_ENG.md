@@ -1,27 +1,28 @@
-# 🛡️ NiftyWall v1.1.0
+# 🛡️ NiftyWall v1.3.0
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-**NiftyWall** (formerly NFTables Dashboard) is a lightweight, secure, and modern web dashboard for viewing and managing `nftables` firewall configurations on Linux servers.
+**NiftyWall** (formerly NFTables Dashboard) is a lightweight, secure, and modern web dashboard for viewing and managing `nftables` firewall configurations on Linux servers (specifically optimized for Ubuntu 24.04).
 
-It interacts directly with the Linux kernel (bypassing wrappers like `firewalld` or `ufw`) and translates complex terminal output into a user-friendly tool with real-time analytics.
+It interacts directly with the Linux kernel (bypassing wrappers like `firewalld` or `ufw`) and translates complex terminal output into a user-friendly tool with real-time analytics. Perfect for Docker-heavy environments.
 
-## ✨ What's New in v1.1.0
+## ✨ What's New in v1.3.0 (Anti-DDoS & NAT Edition)
 
-- **🌍 Intelligent Geo-Location:** Automatically detect country and city for IP addresses in your Sets. Know exactly where attacks or connections are coming from.
-- **📈 Live Activity Charts (Sparklines):** Real-time traffic visualization for every rule. See activity spikes instantly without refreshing the page.
-- **⚙️ Dynamic Sets Management:** A full interface to manage IP lists (e.g., `banned4` or `allow_list`). Add and remove addresses with a single click.
+- **🔀 Smart NAT Management (Port Forwarding):** A dedicated tab for setting up DNAT rules to forward external traffic to internal services (e.g., Docker containers). NiftyWall automatically adds the required `accept` rules in the `FORWARD` chain to ensure traffic flows seamlessly.
+- **🛡️ Rule Builder with Anti-DDoS:** A new modal for building complex rules. You can now enforce strict **Rate Limits** (e.g., 30 requests/sec) to protect your services from floods and DDoS attacks.
+- **🕵️‍♂️ Fail2Ban Integration:** NiftyWall parses your `/var/log/fail2ban.log` and displays the exact ban reason (e.g., `Jail: sshd`) and timestamp next to every blocked IP address in the Dynamic Sets tab.
+- **🌍 Intelligent Geo-Location:** Automatically detect country and city for IP addresses in your Sets.
+- **📈 Live Activity Charts (Sparklines):** Real-time traffic visualization for every rule. See activity spikes instantly without refreshing the page (powered by Chart.js).
 - **📜 Audit Log:** Full history of all user actions in the system. Track who changed what rule and when.
-- **⚡ Performance Optimization:** Switched to asynchronous background data updates (polling) every 5 seconds.
 
 ## 🚀 Key Features
 
-- **Visual Audit:** Complete overview of tables, chains, and rules in a clean, human-readable format.
-- **Instant Port Opening:** Quick form to add allow rules for TCP/UDP traffic.
+- **Human-Readable Formatting:** Forget raw JSON arrays. Rules are displayed as beautiful, color-coded badges (`TCP Port = 80, 443`, `DNAT ➔ 172.17.0.2`).
+- **Dynamic Sets Management:** A full interface to manage IP lists (e.g., `banned4` or `allow_list`).
 - **Panic Mode:** Emergency button to block all incoming traffic except essential services (SSH, Tailscale).
 - **One-Click Backup:** Create an instant backup of the current firewall state to `/etc/nftables.conf.backup`.
-- **Security First:** JWT-based authentication, Brute Force protection, and localhost-only binding (recommended access via SSH or Cloudflare Tunnel).
+- **Security First:** JWT-based authentication, Brute Force protection, and localhost-only binding.
 
-## 🛠️ Installation
+## 🛠️ Installation (Ubuntu 24.04)
 
 ```bash
 # 1. Clone the repository
@@ -57,13 +58,13 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 ```
-Then run: `systemctl enable --now niftywall.service`
+Then run: `systemctl daemon-reload && systemctl enable --now niftywall.service`
 
 ## 📋 System Requirements
 
+- Ubuntu 24.04 (or any modern Linux with `nftables` 1.0.9+)
 - Python 3.10+
-- `nftables` (with root privileges to execute commands)
-- `uvicorn`, `FastAPI`, `PyJWT`, `bcrypt`
+- `root` privileges to execute `nft` commands.
 
 ---
 © 2026 Weby Homelab. Built for those who value control and aesthetics in system administration.
