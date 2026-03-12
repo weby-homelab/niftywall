@@ -1,0 +1,14 @@
+[Unit]
+Description=NiftyWall Firewall Dashboard
+After=network.target nftables.service
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/root/geminicli/weby-homelab/niftywall
+Environment="PATH=/root/geminicli/weby-homelab/niftywall/venv/bin"
+ExecStart=/root/geminicli/weby-homelab/niftywall/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

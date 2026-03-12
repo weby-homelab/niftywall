@@ -65,6 +65,7 @@
         <!-- Navigation Tabs -->
         <div class="flex gap-8 border-b border-gray-700 mb-8">
             <button onclick="switchTab('rules')" id="tab-rules" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all tab-active">Firewall Rules</button>
+            <button onclick="switchTab('nat')" id="tab-nat" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Port Forwarding</button>
             <button onclick="switchTab('sets')" id="tab-sets" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Dynamic Sets</button>
             <button onclick="switchTab('audit')" id="tab-audit" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Audit Log</button>
         </div>
@@ -88,27 +89,164 @@
 
         <!-- Rules Tab -->
         <section id="content-rules" class="space-y-8">
-            <!-- Quick Open Port Form -->
-            <div class="glass p-4 rounded-xl mb-8 flex items-end gap-4 border border-gray-700">
-                <div class="flex-1">
-                    <label class="block text-xs text-gray-400 mb-1">Protocol</label>
-                    <select id="quick-protocol" class="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-                        <option value="tcp">TCP</option>
-                        <option value="udp">UDP</option>
-                    </select>
-                </div>
-                <div class="flex-1">
-                    <label class="block text-xs text-gray-400 mb-1">Port</label>
-                    <input type="number" id="quick-port" placeholder="e.g. 80" class="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-                </div>
-                <div>
-                    <button onclick="quickOpenPort()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors h-10 border border-gray-600">
-                        Open Port
+            <!-- Rule Builder Button -->
+            <div class="flex justify-end mb-4">
+                <button onclick="openRuleModal()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-sm font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    Build New Rule
+                </button>
+            </div>
+
+            <div id="rules-container" class="space-y-8"></div>
+        </section>
+
+        <!-- Rule Builder Modal -->
+        <div id="rule-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50">
+            <div class="glass p-6 rounded-xl w-full max-w-lg border border-gray-600 shadow-2xl relative">
+                <button onclick="closeRuleModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    Advanced Rule Builder
+                </h2>
+                
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Table Family</label>
+                            <select id="rule-family" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                                <option value="inet">inet (IPv4/IPv6)</option>
+                                <option value="ip">ip (IPv4 only)</option>
+                                <option value="ip6">ip6 (IPv6 only)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Chain</label>
+                            <select id="rule-chain" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                                <option value="input">input (Incoming)</option>
+                                <option value="forward">forward (Routing)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Protocol</label>
+                            <select id="rule-protocol" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                                <option value="tcp">TCP</option>
+                                <option value="udp">UDP</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Port(s) <span class="text-gray-500">- e.g. 80,443</span></label>
+                            <input type="text" id="rule-ports" placeholder="80" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Source IP / Set <span class="text-gray-500">- e.g. any, 192.168.1.5, @whitelist</span></label>
+                        <input type="text" id="rule-source" value="any" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Action</label>
+                        <select id="rule-action" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                            <option value="accept" class="text-emerald-400 font-bold">Accept</option>
+                            <option value="drop" class="text-red-400 font-bold">Drop</option>
+                        </select>
+                    </div>
+
+                    <div class="border border-gray-700 rounded-lg p-4 bg-gray-800/50 mt-4">
+                        <label class="flex items-center gap-2 cursor-pointer mb-3">
+                            <input type="checkbox" id="rule-rate-enabled" onchange="toggleRateLimit()" class="w-4 h-4 text-emerald-500 rounded bg-gray-900 border-gray-600">
+                            <span class="text-sm font-bold text-white flex items-center gap-2">🛡️ Enable Anti-DDoS (Rate Limiting)</span>
+                        </label>
+                        
+                        <div id="rate-limit-settings" class="hidden grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Rate</label>
+                                <input type="number" id="rule-rate" value="30" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Per</label>
+                                <select id="rule-unit" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white">
+                                    <option value="second">Second</option>
+                                    <option value="minute">Minute</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Burst</label>
+                                <input type="number" id="rule-burst" value="50" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="submitAdvancedRule()" class="w-full mt-4 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-sm font-bold transition-colors">
+                        Apply Rule
                     </button>
                 </div>
             </div>
-            <div id="rules-container" class="space-y-8"></div>
+        </div>
+
+        <!-- NAT Tab -->
+        <section id="content-nat" class="hidden space-y-8">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-white">Destination NAT (DNAT)</h2>
+                    <p class="text-xs text-gray-500">Forward external ports to internal IPs (e.g. Docker containers)</p>
+                </div>
+                <button onclick="openNatModal()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm font-bold shadow-[0_0_15px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                    New NAT Rule
+                </button>
+            </div>
+            <div id="nat-container" class="space-y-8"></div>
         </section>
+
+        <!-- NAT Builder Modal -->
+        <div id="nat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50">
+            <div class="glass p-6 rounded-xl w-full max-w-lg border border-gray-600 shadow-2xl relative">
+                <button onclick="closeNatModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                    Create Port Forwarding
+                </h2>
+                
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Protocol</label>
+                            <select id="nat-protocol" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                                <option value="tcp">TCP</option>
+                                <option value="udp">UDP</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">External Port</label>
+                            <input type="number" id="nat-ext-port" placeholder="8080" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gray-800/50 border border-gray-700 rounded-lg text-center">
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Forward To ➔</span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-400 mb-1">Internal IP</label>
+                            <input type="text" id="nat-int-ip" placeholder="172.17.0.2" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Internal Port (opt)</label>
+                            <input type="number" id="nat-int-port" placeholder="80" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
+                        </div>
+                    </div>
+
+                    <button onclick="submitNatRule()" class="w-full mt-4 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm font-bold transition-colors">
+                        Apply NAT Rule
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Sets Tab -->
         <section id="content-sets" class="hidden space-y-8">
@@ -143,7 +281,7 @@
         }
 
         async function refreshData() {
-            if (currentTab === 'rules') fetchRules();
+            if (currentTab === 'rules' || currentTab === 'nat') fetchRules();
             if (currentTab === 'sets') fetchSets();
             if (currentTab === 'audit') fetchAudit();
         }
@@ -282,34 +420,95 @@
             }
         }
 
+        function formatExpr(exprArray) {
+            if (!exprArray) return '<span class="text-gray-500 italic">Empty rule</span>';
+            let parts = [];
+            
+            exprArray.forEach(e => {
+                if (e.match) {
+                    let left = JSON.stringify(e.match.left).replace(/[{"}]/g, '');
+                    let right = JSON.stringify(e.match.right).replace(/[{"}]/g, '').replace(/set:\[/g, '{ ').replace(/\]/g, ' }');
+                    
+                    // Humanize 'left' side (the property being matched)
+                    left = left.replace('payload:protocol:tcp,field:dport', 'TCP Port')
+                               .replace('payload:protocol:udp,field:dport', 'UDP Port')
+                               .replace('payload:protocol:ip,field:saddr', 'IPv4 Source')
+                               .replace('payload:protocol:ip6,field:saddr', 'IPv6 Source')
+                               .replace('payload:protocol:ip,field:daddr', 'IPv4 Dest')
+                               .replace('payload:protocol:ip6,field:daddr', 'IPv6 Dest')
+                               .replace('meta:key:iifname', 'In-Interface')
+                               .replace('meta:key:oifname', 'Out-Interface')
+                               .replace('meta:key:iif', 'In-IF (idx)')
+                               .replace('ct:key:state', 'Conn State')
+                               .replace('payload:protocol:ip,field:protocol', 'IP Protocol');
+                               
+                    // Humanize operators
+                    let op = e.match.op === '==' ? '=' : e.match.op;
+                    
+                    parts.push(`<div class="bg-gray-800/80 px-2 py-1 rounded border border-gray-700/50 inline-block whitespace-nowrap"><span class="text-blue-400 font-medium">${left}</span> <span class="text-gray-500 mx-1">${op}</span> <span class="text-yellow-400 font-medium">${right}</span></div>`);
+                } else if (e.limit) {
+                    parts.push(`<div class="bg-purple-900/30 border border-purple-500/30 px-2 py-1 rounded inline-block whitespace-nowrap text-purple-300"><span class="font-bold">Limit:</span> ${e.limit.rate}/${e.limit.per} <span class="text-purple-400/70 text-[10px]">(burst ${e.limit.burst})</span></div>`);
+                } else if (e.accept) {
+                    parts.push('<span class="bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-2 py-1 rounded font-bold uppercase text-[10px] tracking-wider shadow-[0_0_8px_rgba(16,185,129,0.15)]">Accept</span>');
+                } else if (e.drop) {
+                    parts.push('<span class="bg-red-500/20 border border-red-500/30 text-red-400 px-2 py-1 rounded font-bold uppercase text-[10px] tracking-wider shadow-[0_0_8px_rgba(239,68,68,0.15)]">Drop</span>');
+                } else if (e.return) {
+                    parts.push('<span class="bg-blue-500/20 border border-blue-500/30 text-blue-400 px-2 py-1 rounded font-bold uppercase text-[10px] tracking-wider">Return</span>');
+                } else if (e.jump) {
+                    const target = e.jump.target || 'unknown';
+                    parts.push(`<div class="bg-indigo-900/30 border border-indigo-500/30 px-2 py-1 rounded inline-block whitespace-nowrap text-indigo-300"><span class="font-bold text-[10px] uppercase">Jump ➔</span> ${target}</div>`);
+                } else if (e.dnat) {
+                    parts.push(`<div class="bg-orange-900/30 border border-orange-500/30 px-2 py-1 rounded inline-block whitespace-nowrap text-orange-300"><span class="font-bold text-[10px] uppercase">DNAT ➔</span> ${e.dnat}</div>`);
+                } else if (e.snat) {
+                    parts.push(`<div class="bg-orange-900/30 border border-orange-500/30 px-2 py-1 rounded inline-block whitespace-nowrap text-orange-300"><span class="font-bold text-[10px] uppercase">SNAT ➔</span> ${e.snat}</div>`);
+                } else if (e.masquerade !== undefined) {
+                    parts.push('<span class="bg-orange-500/20 border border-orange-500/30 text-orange-400 px-2 py-1 rounded font-bold uppercase text-[10px] tracking-wider shadow-[0_0_8px_rgba(249,115,22,0.15)]">Masquerade</span>');
+                } else if (e.xt) {
+                    parts.push(`<span class="text-gray-400 text-xs italic">[xtables compatibility]</span>`);
+                } else if (e.counter) {
+                    // Handled in a separate column
+                } else if (e.log) {
+                    const prefix = e.log.prefix || '';
+                    parts.push(`<span class="bg-gray-700 text-gray-300 px-2 py-1 rounded font-mono text-xs">📝 Log (${prefix})</span>`);
+                } else {
+                    const key = Object.keys(e)[0];
+                    parts.push(`<span class="text-gray-500 text-xs">[${key}]</span>`);
+                }
+            });
+            
+            return parts.join(' ');
+        }
+
         function renderRules(data) {
-            const container = document.getElementById('rules-container');
-            // We don't want to wipe the container if we are just updating stats
-            // But for now, let's do a smart update or re-render if structure changed
+            const rulesContainer = document.getElementById('rules-container');
+            const natContainer = document.getElementById('nat-container');
             
             const tables = data.nftables.filter(item => item.table);
             const chains = data.nftables.filter(item => item.chain);
             const rules = data.nftables.filter(item => item.rule);
 
-            // Simple check to avoid full re-render if rule count is same
             const currentRuleHandles = rules.map(r => r.rule.handle).join(',');
             const oldRuleHandles = Array.from(document.querySelectorAll('[data-handle]')).map(el => el.dataset.handle).join(',');
             
             if (currentRuleHandles !== oldRuleHandles) {
-                container.innerHTML = '';
+                rulesContainer.innerHTML = '';
+                if(natContainer) natContainer.innerHTML = '';
                 charts.forEach(c => c.destroy());
                 charts.clear();
             }
 
             tables.forEach(tObj => {
                 const t = tObj.table;
+                const isNat = t.name.includes('nat');
+                const targetContainer = isNat && natContainer ? natContainer : rulesContainer;
+                
                 let section = document.getElementById(`table-section-${t.family}-${t.name}`);
                 
                 if (!section) {
                     section = document.createElement('div');
                     section.id = `table-section-${t.family}-${t.name}`;
                     section.className = 'glass rounded-xl overflow-hidden mb-8';
-                    container.appendChild(section);
+                    targetContainer.appendChild(section);
                 }
 
                 let html = `<div class="bg-gray-800/80 px-6 py-4 border-b border-gray-700 flex justify-between items-center"><h2 class="text-xl font-semibold text-white flex items-center gap-2"><span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded text-gray-300">${t.family}</span> Table: ${t.name}</h2></div><div class="p-6 space-y-6">`;
@@ -335,7 +534,7 @@
                                         return `
                                         <tr data-handle="${r.rule.handle}" class="border-b border-gray-700/50 last:border-0 hover:bg-gray-800/50 transition-colors group">
                                             <td class="px-4 py-3 text-gray-500 font-mono">${r.rule.handle}</td>
-                                            <td class="px-4 py-3 font-mono text-gray-300 break-all text-xs">${JSON.stringify(r.rule.expr).replace(/[\[\]"{}]/g, ' ')}</td>
+                                            <td class="px-4 py-3 font-mono text-gray-300 text-xs leading-relaxed flex flex-wrap gap-2 items-center">${formatExpr(r.rule.expr)}</td>
                                             <td class="px-4 py-3"><canvas id="chart-${r.rule.handle}" width="150" height="30"></canvas></td>
                                             <td id="pkts-${r.rule.handle}" class="px-4 py-3 font-mono text-xs text-emerald-500 font-bold">${pkts.toLocaleString()}</td>
                                             <td class="px-4 py-3 text-right"><button onclick="deleteRule('${t.family}','${t.name}','${c.name}',${r.rule.handle})" class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">🗑️</button></td>
@@ -352,12 +551,50 @@
         // Auto-refresh every 5 seconds
         setInterval(refreshData, 5000);
 
+        async function fetchSets() {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/sets');
+                if (!res.ok) throw new Error('Failed to fetch sets');
+                const data = await res.json();
+                await renderSets(data);
+            } catch (err) {
+                console.error("fetchSets error:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
         async function renderSets(data) {
             const container = document.getElementById('sets-container');
             container.innerHTML = '';
-            if (!data.nftables) return;
+            if (!data || !data.nftables) return;
 
-            const sets = data.nftables.filter(item => item.set);
+            const sets = data.nftables.filter(item => item && item.set);
+            
+            // Collect all IPs safely
+            const allIPs = [];
+            sets.forEach(sObj => {
+                const elements = sObj.set.elem || [];
+                elements.forEach(el => {
+                    if (typeof el === 'string' && !el.includes('/')) {
+                        allIPs.push(el);
+                    }
+                });
+            });
+            
+            let f2bInfo = {};
+            if (allIPs.length > 0) {
+                try {
+                    const res = await fetch('/api/fail2ban/info', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ips: allIPs })
+                    });
+                    if (res.ok) f2bInfo = await res.json();
+                } catch (e) { console.warn("F2B fetch failed", e); }
+            }
+
             for (const sObj of sets) {
                 const s = sObj.set;
                 const section = document.createElement('div');
@@ -367,16 +604,31 @@
                 const elements = s.elem || [];
                 
                 for (const el of elements) {
-                    const val = typeof el === 'string' ? el : (el.prefix ? `${el.prefix.addr}/${el.prefix.len}` : JSON.stringify(el));
-                    const geo = await getGeo(val);
-                    const flag = geo ? `<img src="https://flagcdn.com/w20/${geo.code}.png" class="inline mr-2 w-4 h-3 shadow-sm"> <span class="text-xs text-gray-500">${geo.city}, ${geo.country}</span>` : '';
+                    let val = 'unknown';
+                    if (typeof el === 'string') val = el;
+                    else if (el && el.prefix) val = `${el.prefix.addr}/${el.prefix.len}`;
+                    else val = JSON.stringify(el);
+                    
+                    let flag = '';
+                    if (typeof val === 'string' && !val.includes('/') && !val.includes('{')) {
+                        try {
+                            const geo = await getGeo(val);
+                            if (geo) flag = `<img src="https://flagcdn.com/w20/${geo.code}.png" class="inline mr-2 w-4 h-3 shadow-sm"> <span class="text-xs text-gray-500">${geo.city}, ${geo.country}</span>`;
+                        } catch(e) {}
+                    }
+                    
+                    let banBadge = '';
+                    if (f2bInfo[val]) {
+                        banBadge = `<span class="bg-red-900/40 text-red-300 border border-red-500/30 px-2 py-0.5 rounded text-[10px] ml-3 uppercase font-bold tracking-wider" title="Banned at: ${f2bInfo[val].time}">🛡️ Jail: ${f2bInfo[val].jail}</span>`;
+                    }
                     
                     elementsHtml += `
                         <div class="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors group">
-                            <div class="font-mono flex items-center">
-                                <span class="text-emerald-400 mr-4">•</span>
+                            <div class="font-mono flex items-center flex-wrap gap-2">
+                                <span class="text-emerald-400 mr-2">•</span>
                                 ${val}
-                                <div class="ml-4">${flag}</div>
+                                ${banBadge}
+                                <div class="ml-2">${flag}</div>
                             </div>
                             <button onclick="removeSetElement('${s.family}','${s.table}','${s.name}','${val}')" class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
                         </div>
@@ -458,21 +710,100 @@
             } catch (err) { showError(err.message); setLoading(false); }
         }
 
-        async function quickOpenPort() {
-            const port = document.getElementById('quick-port').value;
-            const protocol = document.getElementById('quick-protocol').value;
-            if (!port) return;
+        function openRuleModal() {
+            document.getElementById('rule-modal').classList.remove('hidden');
+        }
+
+        function closeRuleModal() {
+            document.getElementById('rule-modal').classList.add('hidden');
+        }
+
+        function toggleRateLimit() {
+            const enabled = document.getElementById('rule-rate-enabled').checked;
+            const settings = document.getElementById('rate-limit-settings');
+            if (enabled) {
+                settings.classList.remove('hidden');
+            } else {
+                settings.classList.add('hidden');
+            }
+        }
+
+        async function submitAdvancedRule() {
+            const payload = {
+                family: document.getElementById('rule-family').value,
+                table: "filter", // Hardcoded for now, can be expanded
+                chain: document.getElementById('rule-chain').value,
+                protocol: document.getElementById('rule-protocol').value,
+                ports: document.getElementById('rule-ports').value,
+                source: document.getElementById('rule-source').value,
+                action: document.getElementById('rule-action').value,
+                rate_enabled: document.getElementById('rule-rate-enabled').checked,
+                rate: parseInt(document.getElementById('rule-rate').value),
+                unit: document.getElementById('rule-unit').value,
+                burst: parseInt(document.getElementById('rule-burst').value)
+            };
+
+            if (!payload.ports) {
+                showError("Please specify at least one port.");
+                return;
+            }
+
             setLoading(true);
             try {
-                const res = await fetch('/api/ruleset/port', {
+                const res = await fetch('/api/ruleset/advanced', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ family: "inet", table: "filter", chain: "input", port: parseInt(port), protocol: protocol })
+                    body: JSON.stringify(payload)
                 });
-                if (!res.ok) throw new Error('Failed to open port');
-                showSuccess(`Port ${port}/${protocol} opened`);
+                
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to apply rule');
+                
+                showSuccess(data.message);
+                closeRuleModal();
                 fetchRules();
-            } catch (err) { showError(err.message); setLoading(false); }
+            } catch (err) { 
+                showError(err.message); 
+                setLoading(false); 
+            }
+        }
+
+        function openNatModal() { document.getElementById('nat-modal').classList.remove('hidden'); }
+        function closeNatModal() { document.getElementById('nat-modal').classList.add('hidden'); }
+
+        async function submitNatRule() {
+            const payload = {
+                family: "ip", // Default to IPv4 for standard NAT
+                table: "nat",
+                chain: "PREROUTING", // Capitalized because iptables-nft creates it this way
+                protocol: document.getElementById('nat-protocol').value,
+                external_port: parseInt(document.getElementById('nat-ext-port').value),
+                internal_ip: document.getElementById('nat-int-ip').value,
+                internal_port: parseInt(document.getElementById('nat-int-port').value) || null
+            };
+
+            if (!payload.external_port || !payload.internal_ip) {
+                showError("External port and Internal IP are required.");
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const res = await fetch('/api/ruleset/nat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to apply NAT rule');
+                
+                showSuccess(data.message);
+                closeNatModal();
+                fetchRules(); // This re-renders both filter and nat tables
+            } catch (err) { 
+                showError(err.message); 
+                setLoading(false); 
+            }
         }
 
         async function backupRules() {

@@ -61,9 +61,7 @@ class NftablesHandler:
 
     def add_port_rule(self, family: str, table: str, chain: str, port: int, protocol: str) -> bool:
         """
-        Adds a rule to accept traffic on a specific port.
-        Command: nft add rule <family> <table> <chain> <protocol> dport <port> counter accept
-        We default to 'inet filter input' if not specified, but we take params to be safe.
+        Adds a rule to accept traffic on a specific port. (Legacy simple method)
         """
         try:
             subprocess.run(
@@ -74,6 +72,61 @@ class NftablesHandler:
         except subprocess.CalledProcessError as e:
             print(f"Failed to add port: {e}")
             return False
+
+    def add_advanced_rule(self, family: str, table: str, chain: str, protocol: str, ports: str, source: str, action: str, rate_enabled: bool, rate: int, unit: str, burst: int) -> dict:
+        """
+        Builds and applies a complex nftables rule including optional rate limiting via dynamic sets.
+        Returns a dict with {"success": bool, "message": str}
+        """
+        commands = []
+        
+        # Format ports. If comma-separated, wrap in {}
+        port_str = f"{{ {ports} }}" if "," in ports else ports
+        
+        # Base match expression
+        match_expr = f"{protocol} dport {port_str}"
+        
+        # Add source IP if it's not 'any'
+        if source and source.lower() not in ["any", "0.0.0.0/0", "::/0"]:
+            ip_ver = "ip6" if ":" in source else "ip"
+            match_expr = f"{ip_ver} saddr {source} {match_expr}"
+        
+        if rate_enabled:
+            # For rate limiting, we need a dynamic set to track IPs
+            set_name = f"limit_{protocol}_{ports.replace(',', '_')}"
+            ip_type = "ipv6_addr" if family == "ip6" else "ipv4_addr"
+            
+            # Command 1: Create the set if it doesn't exist (we ignore errors if it exists)
+            set_cmd = f"add set {family} {table} {set_name} {{ type {ip_type}; size 65536; flags dynamic, timeout; timeout 1h; }}"
+            commands.append(set_cmd)
+            
+            # Command 2: The actual rate limit rule
+            saddr_var = "ip6 saddr" if family == "ip6" else "ip saddr"
+            limit_cmd = f"add rule {family} {table} {chain} {match_expr} update @{set_name} {{ {saddr_var} limit rate {rate}/{unit} burst {burst} packets }} counter {action}"
+            commands.append(limit_cmd)
+            
+            # Command 3: Drop everything else that exceeds the limit for these ports
+            drop_cmd = f"add rule {family} {table} {chain} {match_expr} counter drop"
+            commands.append(drop_cmd)
+        else:
+            # Simple rule without limits
+            cmd = f"add rule {family} {table} {chain} {match_expr} counter {action}"
+            commands.append(cmd)
+
+        # Execute commands using nft -f -
+        full_command_str = "\n".join(commands)
+        try:
+            process = subprocess.run(
+                [self.nft_cmd, "-f", "-"], 
+                input=full_command_str, 
+                text=True, 
+                capture_output=True
+            )
+            if process.returncode != 0:
+                return {"success": False, "message": f"NFTables error: {process.stderr}"}
+            return {"success": True, "message": "Rule applied successfully"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
 
     def get_sets(self) -> Dict[str, Any]:
         """
@@ -120,6 +173,43 @@ class NftablesHandler:
         except subprocess.CalledProcessError as e:
             print(f"Failed to delete set element: {e}")
             return False
+
+    def add_dnat_rule(self, family: str, table: str, chain: str, protocol: str, external_port: int, internal_ip: str, internal_port: int) -> dict:
+        """
+        Adds a DNAT (Port Forwarding) rule.
+        Also adds a corresponding accept rule in the forward chain so traffic isn't dropped.
+        """
+        match_expr = f"{protocol} dport {external_port}"
+        
+        # For IPv6, the internal IP must be wrapped in brackets [ ] for dnat if it includes a port
+        if ":" in internal_ip and internal_port:
+            target = f"[{internal_ip}]:{internal_port}"
+        else:
+            target = f"{internal_ip}:{internal_port}" if internal_port else internal_ip
+
+        # Command 1: The actual NAT rule
+        dnat_cmd = f"add rule {family} {table} {chain} {match_expr} counter dnat to {target}"
+        
+        # Command 2: Allow the forwarded traffic through the firewall
+        # Assuming the standard filter table and forward chain
+        fwd_port = internal_port if internal_port else external_port
+        ip_ver = "ip6" if ":" in internal_ip else "ip"
+        fwd_cmd = f"add rule inet filter forward {ip_ver} daddr {internal_ip} {protocol} dport {fwd_port} counter accept"
+
+        full_command_str = f"{dnat_cmd}\n{fwd_cmd}"
+
+        try:
+            process = subprocess.run(
+                [self.nft_cmd, "-f", "-"], 
+                input=full_command_str, 
+                text=True, 
+                capture_output=True
+            )
+            if process.returncode != 0:
+                return {"success": False, "message": f"NFTables error: {process.stderr}"}
+            return {"success": True, "message": "NAT and Forwarding rules applied successfully"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
 
     def apply_panic_mode(self) -> bool:
         """
