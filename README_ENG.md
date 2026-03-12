@@ -1,8 +1,9 @@
-# 🛡️ NFTables Dashboard v1.1.0
+# 🛡️ NiftyWall v1.1.0
+*Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-A lightweight, secure, and modern web dashboard for viewing and managing `nftables` firewall configurations on Linux servers.
+**NiftyWall** (formerly NFTables Dashboard) is a lightweight, secure, and modern web dashboard for viewing and managing `nftables` firewall configurations on Linux servers.
 
-Version **v1.1.0** transforms the basic interface into a powerful security analytics and dynamic management tool.
+It interacts directly with the Linux kernel (bypassing wrappers like `firewalld` or `ufw`) and translates complex terminal output into a user-friendly tool with real-time analytics.
 
 ## ✨ What's New in v1.1.0
 
@@ -24,8 +25,8 @@ Version **v1.1.0** transforms the basic interface into a powerful security analy
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/weby-homelab/nftables-dashboard.git
-cd nftables-dashboard
+git clone https://github.com/weby-homelab/niftywall.git
+cd niftywall
 
 # 2. Create virtual environment
 python3 -m venv venv
@@ -37,17 +38,32 @@ cp .env.example .env
 # Edit .env, set your admin password and generate a secure SECRET_KEY
 ```
 
+### Running as a Systemd Service (Recommended)
+Create `/etc/systemd/system/niftywall.service`:
+
+```ini
+[Unit]
+Description=NiftyWall Firewall Dashboard
+After=network.target nftables.service
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/opt/niftywall
+Environment="PATH=/opt/niftywall/venv/bin"
+ExecStart=/opt/niftywall/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+Then run: `systemctl enable --now niftywall.service`
+
 ## 📋 System Requirements
 
 - Python 3.10+
 - `nftables` (with root privileges to execute commands)
 - `uvicorn`, `FastAPI`, `PyJWT`, `bcrypt`
-
-## 🛡️ Security
-
-The dashboard binds to `127.0.0.1:8080` by default. This is intentional to ensure your firewall management isn't exposed to the public internet. To access it:
-- **SSH Tunnel:** `ssh -L 8080:127.0.0.1:8080 user@your-server`
-- **Cloudflare Tunnel:** configure `cloudflared` to proxy your internal port to a secured subdomain.
 
 ---
 © 2026 Weby Homelab. Built for those who value control and aesthetics in system administration.

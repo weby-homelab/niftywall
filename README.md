@@ -1,8 +1,9 @@
-# 🛡️ NFTables Dashboard v1.1.0
+# 🛡️ NiftyWall v1.1.0
+*Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-Легкий, безпечний і сучасний веб-дашборд для перегляду та керування конфігураціями фаєрвола `nftables` на Linux-серверах.
+**NiftyWall** (колишній NFTables Dashboard) — це легкий, безпечний і сучасний веб-дашборд для перегляду та керування конфігураціями фаєрвола `nftables` на Linux-серверах.
 
-Версія **v1.1.0** перетворює базовий інтерфейс на потужний інструмент аналітики та динамічного керування безпекою.
+Він працює напряму з ядром (без абстракцій типу `firewalld` чи `ufw`) і перетворює складний термінальний вивід на зручний інструмент з аналітикою в реальному часі.
 
 ## ✨ Що нового у версії 1.1.0
 
@@ -24,8 +25,8 @@
 
 ```bash
 # 1. Клонування репозиторію
-git clone https://github.com/weby-homelab/nftables-dashboard.git
-cd nftables-dashboard
+git clone https://github.com/weby-homelab/niftywall.git
+cd niftywall
 
 # 2. Створення віртуального середовища
 python3 -m venv venv
@@ -37,17 +38,32 @@ cp .env.example .env
 # Відредагуйте .env, вкажіть ваш пароль та згенеруйте надійний SECRET_KEY
 ```
 
+### Запуск як Systemd-сервіс (Рекомендовано)
+Створіть файл `/etc/systemd/system/niftywall.service`:
+
+```ini
+[Unit]
+Description=NiftyWall Firewall Dashboard
+After=network.target nftables.service
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/opt/niftywall
+Environment="PATH=/opt/niftywall/venv/bin"
+ExecStart=/opt/niftywall/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+Потім запустіть: `systemctl enable --now niftywall.service`
+
 ## 📋 Системні вимоги
 
 - Python 3.10+
 - `nftables` (з правами root для виконання команд)
 - `uvicorn`, `FastAPI`, `PyJWT`, `bcrypt`
-
-## 🛡️ Безпека
-
-Дашборд за замовчуванням запускається на `127.0.0.1:8080`. Це зроблено навмисно, щоб ваш фаєрвол не був відкритим для всього світу. Для доступу використовуйте:
-- **SSH Tunnel:** `ssh -L 8080:127.0.0.1:8080 user@your-server`
-- **Cloudflare Tunnel:** налаштуйте `cloudflared` для проксіювання вашого внутрішнього порту на захищений піддомен.
 
 ---
 © 2026 Weby Homelab. Створено для тих, хто цінує контроль та естетику в системному адмініструванні.

@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 from app.nft_handler import NftablesHandler
 from app.auth import auth_router, get_current_user
 
-app = FastAPI(title="NFTables Dashboard")
+app = FastAPI(title="NiftyWall")
 
 # Include Authentication Router
 app.include_router(auth_router)
