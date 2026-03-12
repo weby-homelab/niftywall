@@ -548,8 +548,12 @@
             });
         }
 
-        // Auto-refresh every 5 seconds
-        setInterval(refreshData, 5000);
+        // Auto-refresh every 5 seconds ONLY for active real-time data
+        setInterval(() => {
+            if (currentTab === 'rules' || currentTab === 'nat') {
+                fetchRules();
+            }
+        }, 5000);
 
         async function fetchSets() {
             setLoading(true);

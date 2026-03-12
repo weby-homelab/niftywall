@@ -1,2 +1,5 @@
 {"timestamp": "2026-03-12T21:25:41", "user": "AddMax13", "action": "SET_ADD", "details": "Added 2.2.2.22 to banned4"}
 {"timestamp": "2026-03-12T21:32:36", "user": "AddMax13", "action": "ADD_NAT", "details": "NAT: tcp 33333 -> 172.19.0.22:3333"}
+{"timestamp": "2026-03-12T21:39:07", "user": "AddMax13", "action": "DELETE_RULE", "details": "Removed rule 63 from ip nat PREROUTING"}
+{"timestamp": "2026-03-12T21:42:56", "user": "AddMax13", "action": "SET_REMOVE", "details": "Removed 2.2.2.22 from banned4"}
+{"timestamp": "2026-03-12T21:43:05", "user": "AddMax13", "action": "SET_ADD", "details": "Added 3.3.3.3 to banned4"}
