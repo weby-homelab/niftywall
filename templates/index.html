@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NFTables Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -27,6 +28,10 @@
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .tab-active {
+            border-bottom: 2px solid #10b981;
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
@@ -39,8 +44,13 @@
                 </h1>
                 <p class="text-gray-400 mt-1">Live Firewall Configuration</p>
             </div>
-            <div class="flex gap-4">
-                <button onclick="fetchRules()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-md transition-colors text-sm font-medium text-gray-300">
+            <div class="flex gap-4 items-center">
+                <button onclick="panicMode()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 rounded-md transition-colors text-sm font-bold flex items-center gap-2" title="Block all incoming traffic except SSH and Tailscale">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Panic Mode
+                </button>
+                <div class="h-6 w-px bg-gray-700 mx-2"></div>
+                <button onclick="refreshData()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-md transition-colors text-sm font-medium text-gray-300">
                     Refresh
                 </button>
                 <button onclick="backupRules()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-md transition-colors text-sm font-medium text-white shadow-[0_0_10px_rgba(16,185,129,0.2)]">
@@ -52,20 +62,63 @@
             </div>
         </header>
 
-        <div id="loading" class="text-center py-12 text-gray-400">
+        <!-- Navigation Tabs -->
+        <div class="flex gap-8 border-b border-gray-700 mb-8">
+            <button onclick="switchTab('rules')" id="tab-rules" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all tab-active">Firewall Rules</button>
+            <button onclick="switchTab('sets')" id="tab-sets" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Dynamic Sets</button>
+            <button onclick="switchTab('audit')" id="tab-audit" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Audit Log</button>
+        </div>
+
+        <div id="loading" class="text-center py-12 text-gray-400 hidden">
             <svg class="animate-spin h-8 w-8 mx-auto mb-4 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Loading ruleset...
+            Processing...
         </div>
 
-        <div id="error" class="hidden glass border-red-500/50 text-red-400 p-4 rounded-lg mb-8"></div>
-        <div id="success" class="hidden glass border-emerald-500/50 text-emerald-400 p-4 rounded-lg mb-8"></div>
+        <div id="error" class="hidden glass border-red-500/50 text-red-400 p-4 rounded-lg mb-8 flex justify-between items-center">
+            <span id="error-msg"></span>
+            <button onclick="this.parentElement.classList.add('hidden')" class="text-red-400 hover:text-red-300">&times;</button>
+        </div>
+        <div id="success" class="hidden glass border-emerald-500/50 text-emerald-400 p-4 rounded-lg mb-8 flex justify-between items-center">
+            <span id="success-msg"></span>
+            <button onclick="this.parentElement.classList.add('hidden')" class="text-emerald-400 hover:text-emerald-300">&times;</button>
+        </div>
 
-        <main id="rules-container" class="hidden space-y-8">
-            <!-- Content will be injected here by JS -->
-        </main>
+        <!-- Rules Tab -->
+        <section id="content-rules" class="space-y-8">
+            <!-- Quick Open Port Form -->
+            <div class="glass p-4 rounded-xl mb-8 flex items-end gap-4 border border-gray-700">
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-400 mb-1">Protocol</label>
+                    <select id="quick-protocol" class="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-400 mb-1">Port</label>
+                    <input type="number" id="quick-port" placeholder="e.g. 80" class="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <button onclick="quickOpenPort()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors h-10 border border-gray-600">
+                        Open Port
+                    </button>
+                </div>
+            </div>
+            <div id="rules-container" class="space-y-8"></div>
+        </section>
+
+        <!-- Sets Tab -->
+        <section id="content-sets" class="hidden space-y-8">
+            <div id="sets-container" class="space-y-8"></div>
+        </section>
+
+        <!-- Audit Tab -->
+        <section id="content-audit" class="hidden">
+            <div class="glass p-8 text-center rounded-xl text-gray-400">Audit log will be implemented in the next step.</div>
+        </section>
 
         <footer class="mt-12 text-center text-sm text-gray-500 pb-8">
             © 2026 Weby Homelab. Running locally.
@@ -73,132 +126,382 @@
     </div>
 
     <script>
-        async function fetchRules() {
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('rules-container').classList.add('hidden');
-            document.getElementById('error').classList.add('hidden');
-            document.getElementById('success').classList.add('hidden');
+        let currentTab = 'rules';
+        const geoCache = new Map();
+        const statsHistory = new Map(); // handle -> [pkts1, pkts2, ...]
+        const charts = new Map(); // handle -> chartInstance
 
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            
+            document.querySelectorAll('header + div button').forEach(b => b.classList.remove('tab-active'));
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            
+            refreshData();
+        }
+
+        async function refreshData() {
+            if (currentTab === 'rules') fetchRules();
+            if (currentTab === 'sets') fetchSets();
+            if (currentTab === 'audit') fetchAudit();
+        }
+
+        async function fetchAudit() {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/audit');
+                if (!res.ok) throw new Error('Failed to fetch audit log');
+                const data = await res.json();
+                renderAudit(data);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function renderAudit(logs) {
+            const container = document.getElementById('content-audit');
+            if (logs.length === 0) {
+                container.innerHTML = '<div class="glass p-8 text-center rounded-xl text-gray-400">No actions recorded yet.</div>';
+                return;
+            }
+
+            let html = `
+                <div class="glass rounded-xl overflow-hidden">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-700">
+                            <tr>
+                                <th class="px-6 py-3">Time</th>
+                                <th class="px-6 py-3">User</th>
+                                <th class="px-6 py-3">Action</th>
+                                <th class="px-6 py-3">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            logs.forEach(log => {
+                const date = new Date(log.timestamp).toLocaleString();
+                const actionClass = log.action.includes('DELETE') || log.action === 'PANIC_MODE' ? 'text-red-400' : 'text-emerald-400';
+                html += `
+                    <tr class="border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors">
+                        <td class="px-6 py-4 text-gray-400 font-mono text-xs">${date}</td>
+                        <td class="px-6 py-4 font-medium">${log.user}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 rounded bg-gray-900 text-xs font-bold ${actionClass}">${log.action}</span></td>
+                        <td class="px-6 py-4 text-gray-300 text-xs">${log.details}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        async function fetchRules() {
+            // Only show loader on initial load
+            if (statsHistory.size === 0) setLoading(true);
+            
             try {
                 const res = await fetch('/api/ruleset');
-                if (!res.ok) throw new Error('Failed to fetch rules');
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to fetch rules');
+                }
                 const data = await res.json();
                 renderRules(data);
             } catch (err) {
                 showError(err.message);
             } finally {
-                document.getElementById('loading').classList.add('hidden');
+                setLoading(false);
             }
         }
 
-        async function backupRules() {
+        async function getGeo(ip) {
+            if (!ip || ip.includes('/') || ip.includes('*') || ip === '127.0.0.1' || ip.startsWith('100.')) return null;
+            if (geoCache.has(ip)) return geoCache.get(ip);
             try {
-                const res = await fetch('/api/backup', { method: 'POST' });
+                const res = await fetch(`https://ipapi.co/${ip}/json/`);
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Backup failed');
-                
-                const successEl = document.getElementById('success');
-                successEl.textContent = data.message;
-                successEl.classList.remove('hidden');
-                setTimeout(() => successEl.classList.add('hidden'), 5000);
-            } catch (err) {
-                showError(err.message);
-            }
+                if (data.country_name) {
+                    const info = { country: data.country_name, code: data.country_code.toLowerCase(), city: data.city };
+                    geoCache.set(ip, info);
+                    return info;
+                }
+            } catch (e) { geoCache.set(ip, null); }
+            return null;
         }
 
-        function showError(msg) {
-            const errEl = document.getElementById('error');
-            errEl.textContent = msg;
-            errEl.classList.remove('hidden');
+        function updateSparkline(handle, currentPkts) {
+            if (!statsHistory.has(handle)) statsHistory.set(handle, []);
+            const history = statsHistory.get(handle);
+            
+            // We want to graph the DELTA (packets per interval)
+            let delta = 0;
+            if (history.length > 0) {
+                const lastTotal = history[history.length - 1].total;
+                delta = Math.max(0, currentPkts - lastTotal);
+            }
+            
+            history.push({ total: currentPkts, delta: delta });
+            if (history.length > 20) history.shift();
+
+            const canvas = document.getElementById(`chart-${handle}`);
+            if (!canvas) return;
+
+            if (charts.has(handle)) {
+                const chart = charts.get(handle);
+                chart.data.datasets[0].data = history.map(h => h.delta);
+                chart.update('none');
+            } else {
+                const ctx = canvas.getContext('2d');
+                const chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: history.map((_, i) => i),
+                        datasets: [{
+                            data: history.map(h => h.delta),
+                            borderColor: '#10b981',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)'
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                        scales: { x: { display: false }, y: { display: false, min: 0 } }
+                    }
+                });
+                charts.set(handle, chart);
+            }
         }
 
         function renderRules(data) {
             const container = document.getElementById('rules-container');
-            container.innerHTML = '';
+            // We don't want to wipe the container if we are just updating stats
+            // But for now, let's do a smart update or re-render if structure changed
             
-            if (!data.nftables || !Array.isArray(data.nftables)) {
-                container.innerHTML = '<div class="glass p-8 text-center rounded-xl text-gray-400">No nftables structure found or firewall is empty.</div>';
-                container.classList.remove('hidden');
-                return;
-            }
-
-            // Group by Table
             const tables = data.nftables.filter(item => item.table);
             const chains = data.nftables.filter(item => item.chain);
             const rules = data.nftables.filter(item => item.rule);
 
+            // Simple check to avoid full re-render if rule count is same
+            const currentRuleHandles = rules.map(r => r.rule.handle).join(',');
+            const oldRuleHandles = Array.from(document.querySelectorAll('[data-handle]')).map(el => el.dataset.handle).join(',');
+            
+            if (currentRuleHandles !== oldRuleHandles) {
+                container.innerHTML = '';
+                charts.forEach(c => c.destroy());
+                charts.clear();
+            }
+
             tables.forEach(tObj => {
                 const t = tObj.table;
-                const tableSection = document.createElement('div');
-                tableSection.className = 'glass rounded-xl overflow-hidden';
+                let section = document.getElementById(`table-section-${t.family}-${t.name}`);
                 
-                let html = `
-                    <div class="bg-gray-800/80 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-                        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
-                            <span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded text-gray-300">${t.family}</span>
-                            Table: ${t.name}
-                        </h2>
-                    </div>
-                    <div class="p-6 space-y-6">
-                `;
+                if (!section) {
+                    section = document.createElement('div');
+                    section.id = `table-section-${t.family}-${t.name}`;
+                    section.className = 'glass rounded-xl overflow-hidden mb-8';
+                    container.appendChild(section);
+                }
 
-                const tableChains = chains.filter(cObj => cObj.chain.table === t.name && cObj.chain.family === t.family);
-                
-                tableChains.forEach(cObj => {
+                let html = `<div class="bg-gray-800/80 px-6 py-4 border-b border-gray-700 flex justify-between items-center"><h2 class="text-xl font-semibold text-white flex items-center gap-2"><span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded text-gray-300">${t.family}</span> Table: ${t.name}</h2></div><div class="p-6 space-y-6">`;
+
+                chains.filter(c => c.chain.table === t.name && c.chain.family === t.family).forEach(cObj => {
                     const c = cObj.chain;
-                    const chainRules = rules.filter(rObj => rObj.rule.table === t.name && rObj.rule.chain === c.name && rObj.rule.family === t.family);
-                    
+                    const chainRules = rules.filter(r => r.rule.table === t.name && r.rule.chain === c.name && r.rule.family === t.family);
                     html += `
-                        <div class="border border-gray-700 rounded-lg bg-gray-800/30">
+                        <div class="border border-gray-700 rounded-lg bg-gray-800/30 overflow-hidden">
                             <div class="px-4 py-3 bg-gray-800/50 border-b border-gray-700 flex justify-between items-center">
-                                <div>
-                                    <h3 class="font-medium text-emerald-400 font-mono">Chain: ${c.name}</h3>
-                                    ${c.type ? `<p class="text-xs text-gray-400 mt-1">Hook: ${c.hook} | Priority: ${c.priority} | Policy: <span class="${c.policy === 'accept' ? 'text-emerald-500' : 'text-red-500'}">${c.policy}</span></p>` : ''}
-                                </div>
+                                <div><h3 class="font-medium text-emerald-400 font-mono">Chain: ${c.name}</h3></div>
                                 <span class="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded-full">${chainRules.length} rules</span>
                             </div>
-                            <div class="p-0">
-                                ${chainRules.length > 0 ? `
-                                    <table class="w-full text-sm text-left">
-                                        <thead class="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-700">
-                                            <tr>
-                                                <th class="px-4 py-3 w-16">#</th>
-                                                <th class="px-4 py-3">Expression</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${chainRules.map(rObj => {
-                                                // Simplify the complex JSON expression for display
-                                                let exprText = JSON.stringify(rObj.rule.expr).replace(/[\[\]"{}]/g, ' ').trim();
-                                                // Highlight common ports and actions
-                                                exprText = exprText.replace(/accept/g, '<span class="text-emerald-400 font-bold">accept</span>');
-                                                exprText = exprText.replace(/drop/g, '<span class="text-red-400 font-bold">drop</span>');
-                                                exprText = exprText.replace(/masquerade/g, '<span class="text-blue-400 font-bold">masquerade</span>');
-                                                
-                                                return `
-                                                <tr class="border-b border-gray-700/50 last:border-0 hover:bg-gray-800/50 transition-colors">
-                                                    <td class="px-4 py-3 text-gray-500 font-mono">${rObj.rule.handle}</td>
-                                                    <td class="px-4 py-3 font-mono text-gray-300 break-all">${exprText}</td>
-                                                </tr>
-                                            `}).join('')}
-                                        </tbody>
-                                    </table>
-                                ` : '<div class="px-4 py-3 text-sm text-gray-500 italic">No rules in this chain.</div>'}
-                            </div>
-                        </div>
-                    `;
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-700">
+                                    <tr><th class="px-4 py-3 w-16">#</th><th class="px-4 py-3">Expression</th><th class="px-4 py-3 w-48">Activity (pkts/sec)</th><th class="px-4 py-3 w-32">Total Pkts</th><th class="px-4 py-3 w-16 text-right">Actions</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${chainRules.map(r => {
+                                        const pktsObj = (r.rule.expr || []).find(e => e.counter);
+                                        const pkts = pktsObj ? pktsObj.counter.packets : 0;
+                                        setTimeout(() => updateSparkline(r.rule.handle, pkts), 0);
+                                        return `
+                                        <tr data-handle="${r.rule.handle}" class="border-b border-gray-700/50 last:border-0 hover:bg-gray-800/50 transition-colors group">
+                                            <td class="px-4 py-3 text-gray-500 font-mono">${r.rule.handle}</td>
+                                            <td class="px-4 py-3 font-mono text-gray-300 break-all text-xs">${JSON.stringify(r.rule.expr).replace(/[\[\]"{}]/g, ' ')}</td>
+                                            <td class="px-4 py-3"><canvas id="chart-${r.rule.handle}" width="150" height="30"></canvas></td>
+                                            <td id="pkts-${r.rule.handle}" class="px-4 py-3 font-mono text-xs text-emerald-500 font-bold">${pkts.toLocaleString()}</td>
+                                            <td class="px-4 py-3 text-right"><button onclick="deleteRule('${t.family}','${t.name}','${c.name}',${r.rule.handle})" class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">🗑️</button></td>
+                                        </tr>
+                                    `}).join('')}
+                                </tbody>
+                            </table>
+                        </div>`;
                 });
-
-                html += `</div>`;
-                tableSection.innerHTML = html;
-                container.appendChild(tableSection);
+                section.innerHTML = html + '</div>';
             });
-
-            container.classList.remove('hidden');
         }
 
-        // Init
-        document.addEventListener('DOMContentLoaded', fetchRules);
+        // Auto-refresh every 5 seconds
+        setInterval(refreshData, 5000);
+
+        async function renderSets(data) {
+            const container = document.getElementById('sets-container');
+            container.innerHTML = '';
+            if (!data.nftables) return;
+
+            const sets = data.nftables.filter(item => item.set);
+            for (const sObj of sets) {
+                const s = sObj.set;
+                const section = document.createElement('div');
+                section.className = 'glass rounded-xl overflow-hidden';
+                
+                let elementsHtml = '';
+                const elements = s.elem || [];
+                
+                for (const el of elements) {
+                    const val = typeof el === 'string' ? el : (el.prefix ? `${el.prefix.addr}/${el.prefix.len}` : JSON.stringify(el));
+                    const geo = await getGeo(val);
+                    const flag = geo ? `<img src="https://flagcdn.com/w20/${geo.code}.png" class="inline mr-2 w-4 h-3 shadow-sm"> <span class="text-xs text-gray-500">${geo.city}, ${geo.country}</span>` : '';
+                    
+                    elementsHtml += `
+                        <div class="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors group">
+                            <div class="font-mono flex items-center">
+                                <span class="text-emerald-400 mr-4">•</span>
+                                ${val}
+                                <div class="ml-4">${flag}</div>
+                            </div>
+                            <button onclick="removeSetElement('${s.family}','${s.table}','${s.name}','${val}')" class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                        </div>
+                    `;
+                }
+
+                section.innerHTML = `
+                    <div class="bg-gray-800/80 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-semibold text-white flex items-center gap-2">
+                                <span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded text-gray-300">${s.family}</span>
+                                Set: ${s.name}
+                            </h2>
+                            <p class="text-xs text-gray-500 mt-1">Table: ${s.table} | Type: ${s.type}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="add-to-${s.name}" type="text" placeholder="IP or CIDR" class="bg-gray-900 border border-gray-700 rounded-md px-3 py-1 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <button onclick="addSetElement('${s.family}','${s.table}','${s.name}')" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-xs transition-colors">Add</button>
+                        </div>
+                    </div>
+                    <div class="p-2">
+                        ${elementsHtml || '<p class="p-4 text-sm text-gray-500 italic">No elements in this set.</p>'}
+                    </div>
+                `;
+                container.appendChild(section);
+            }
+        }
+
+        async function addSetElement(family, table, setName) {
+            const el = document.getElementById(`add-to-${setName}`).value;
+            if (!el) return;
+            setLoading(true);
+            try {
+                const res = await fetch('/api/sets/element', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ family, table, set_name: setName, element: el })
+                });
+                if (!res.ok) throw new Error('Failed to add element');
+                showSuccess(`Added ${el} to ${setName}`);
+                fetchSets();
+            } catch (err) { showError(err.message); setLoading(false); }
+        }
+
+        async function removeSetElement(family, table, setName, el) {
+            if (!confirm(`Remove ${el} from ${setName}?`)) return;
+            setLoading(true);
+            try {
+                const res = await fetch('/api/sets/element', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ family, table, set_name: setName, element: el })
+                });
+                if (!res.ok) throw new Error('Failed to remove element');
+                showSuccess(`Removed ${el} from ${setName}`);
+                fetchSets();
+            } catch (err) { showError(err.message); setLoading(false); }
+        }
+
+        async function deleteRule(family, table, chain, handle) {
+            if (!confirm(`Delete rule #${handle}?`)) return;
+            setLoading(true);
+            try {
+                const res = await fetch(`/api/ruleset/${family}/${table}/${chain}/${handle}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Failed to delete');
+                showSuccess(`Rule ${handle} deleted`);
+                fetchRules();
+            } catch (err) { showError(err.message); setLoading(false); }
+        }
+
+        async function panicMode() {
+            if (!confirm("⚠️ WARNING: This will flush all input rules!")) return;
+            setLoading(true);
+            try {
+                const res = await fetch('/api/ruleset/panic', { method: 'POST' });
+                if (!res.ok) throw new Error('Panic failed');
+                showSuccess("Panic mode activated!");
+                refreshData();
+            } catch (err) { showError(err.message); setLoading(false); }
+        }
+
+        async function quickOpenPort() {
+            const port = document.getElementById('quick-port').value;
+            const protocol = document.getElementById('quick-protocol').value;
+            if (!port) return;
+            setLoading(true);
+            try {
+                const res = await fetch('/api/ruleset/port', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ family: "inet", table: "filter", chain: "input", port: parseInt(port), protocol: protocol })
+                });
+                if (!res.ok) throw new Error('Failed to open port');
+                showSuccess(`Port ${port}/${protocol} opened`);
+                fetchRules();
+            } catch (err) { showError(err.message); setLoading(false); }
+        }
+
+        async function backupRules() {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/backup', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error('Backup failed');
+                showSuccess(data.message);
+            } catch (err) { showError(err.message); } finally { setLoading(false); }
+        }
+
+        function setLoading(isLoading) {
+            document.getElementById('loading').classList.toggle('hidden', !isLoading);
+        }
+
+        function showError(msg) {
+            document.getElementById('error-msg').textContent = msg;
+            document.getElementById('error').classList.remove('hidden');
+            setTimeout(() => document.getElementById('error').classList.add('hidden'), 10000);
+        }
+
+        function showSuccess(msg) {
+            document.getElementById('success-msg').textContent = msg;
+            document.getElementById('success').classList.remove('hidden');
+            setTimeout(() => document.getElementById('success').classList.add('hidden'), 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', refreshData);
     </script>
 </body>
 </html>
