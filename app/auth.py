@@ -66,8 +66,12 @@ def get_current_user(request: Request):
         if username is None or username != ADMIN_USERNAME:
             raise HTTPException(status_code=401, detail="Invalid token")
         return username
-    except jwt.PyJWTError:
+    except jwt.PyJWTError as e:
+        print(f"JWT ERROR: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        print(f"AUTH UNEXPECTED ERROR: {str(e)}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 @auth_router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
