@@ -7,16 +7,17 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v1.3.0
+# 🛡️ NiftyWall v1.4.0
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
 **NiftyWall** (formerly NFTables Dashboard) is a lightweight, secure, and modern web dashboard for viewing and managing `nftables` firewall configurations on Linux servers (specifically optimized for Ubuntu 24.04).
 
 It interacts directly with the Linux kernel (bypassing wrappers like `firewalld` or `ufw`) and translates complex terminal output into a user-friendly tool with real-time analytics. Perfect for Docker-heavy environments.
 
-## ✨ What's New in v1.3.0 (Anti-DDoS & NAT Edition)
+## ✨ What's New in v1.4.0 (Time Machine)
 
-- **🔀 Smart NAT Management (Port Forwarding):** A dedicated tab for setting up DNAT rules to forward external traffic to internal services (e.g., Docker containers). NiftyWall automatically adds the required `accept` rules in the `FORWARD` chain to ensure traffic flows seamlessly.
+- **🕰️ Time Machine (Auto-Snapshots):** Feel safe making changes! Before any firewall mutation (like adding a port or deleting a rule), NiftyWall automatically creates a snapshot of your current configuration. Use the new "Time Machine" tab to rollback to a previous state in one click if something goes wrong.
+- **🔀 Smart NAT Management (Port Forwarding):** A dedicated tab for setting up DNAT rules to forward external traffic to internal services (e.g., Docker containers). NiftyWall automatically adds the required `accept` rules in the `FORWARD` chain.
 - **🛡️ Rule Builder with Anti-DDoS:** A new modal for building complex rules. You can now enforce strict **Rate Limits** (e.g., 30 requests/sec) to protect your services from floods and DDoS attacks.
 - **🕵️‍♂️ Fail2Ban Integration:** NiftyWall parses your `/var/log/fail2ban.log` and displays the exact ban reason (e.g., `Jail: sshd`) and timestamp next to every blocked IP address in the Dynamic Sets tab.
 - **🌍 Intelligent Geo-Location:** Automatically detect country and city for IP addresses in your Sets.
