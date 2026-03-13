@@ -67,6 +67,7 @@
             <button onclick="switchTab('rules')" id="tab-rules" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all tab-active">Firewall Rules</button>
             <button onclick="switchTab('nat')" id="tab-nat" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Port Forwarding</button>
             <button onclick="switchTab('sets')" id="tab-sets" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Dynamic Sets</button>
+            <button onclick="switchTab('timemachine')" id="tab-timemachine" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Time Machine</button>
             <button onclick="switchTab('audit')" id="tab-audit" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Audit Log</button>
         </div>
 
@@ -253,6 +254,17 @@
             <div id="sets-container" class="space-y-8"></div>
         </section>
 
+        <!-- Time Machine Tab -->
+        <section id="content-timemachine" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-white">Time Machine (Auto-Snapshots)</h2>
+                    <p class="text-xs text-gray-500">NiftyWall automatically saves the firewall state before any mutation. Keep max 20.</p>
+                </div>
+            </div>
+            <div id="timemachine-container"></div>
+        </section>
+
         <!-- Audit Tab -->
         <section id="content-audit" class="hidden">
             <div class="glass p-8 text-center rounded-xl text-gray-400">Audit log will be implemented in the next step.</div>
@@ -284,6 +296,75 @@
             if (currentTab === 'rules' || currentTab === 'nat') fetchRules();
             if (currentTab === 'sets') fetchSets();
             if (currentTab === 'audit') fetchAudit();
+            if (currentTab === 'timemachine') fetchSnapshots();
+        }
+
+        async function fetchSnapshots() {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/snapshots');
+                if (!res.ok) throw new Error('Failed to fetch snapshots');
+                const data = await res.json();
+                renderSnapshots(data);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function renderSnapshots(snapshots) {
+            const container = document.getElementById('timemachine-container');
+            if (snapshots.length === 0) {
+                container.innerHTML = '<div class="glass p-8 text-center rounded-xl text-gray-400">No snapshots available yet. Modify rules to generate them.</div>';
+                return;
+            }
+
+            let html = `
+                <div class="glass rounded-xl overflow-hidden">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-700">
+                            <tr>
+                                <th class="px-6 py-3">Time</th>
+                                <th class="px-6 py-3">Pre-Action (Trigger)</th>
+                                <th class="px-6 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            snapshots.forEach(snap => {
+                const date = new Date(snap.timestamp).toLocaleString();
+                html += `
+                    <tr class="border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors">
+                        <td class="px-6 py-4 text-emerald-400 font-mono text-xs">${date}</td>
+                        <td class="px-6 py-4 font-medium text-gray-300">Before: <span class="bg-gray-700 px-2 py-1 rounded text-xs ml-2">${snap.action}</span></td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="restoreSnapshot('${snap.filename}')" class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600/40 px-3 py-1.5 rounded transition-colors text-xs font-bold">
+                                🔄 Restore to this state
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        async function restoreSnapshot(filename) {
+            if (!confirm(`Are you sure you want to restore firewall to ${filename}? Current state will be overwritten!`)) return;
+            setLoading(true);
+            try {
+                const res = await fetch(`/api/snapshots/restore/${filename}`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to restore');
+                showSuccess(data.message);
+                fetchSnapshots();
+            } catch (err) { 
+                showError(err.message); 
+                setLoading(false); 
+            }
         }
 
         async function fetchAudit() {

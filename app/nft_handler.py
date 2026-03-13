@@ -1,11 +1,79 @@
 import json
 import subprocess
+import os
+import glob
+from datetime import datetime
 from typing import Dict, Any
+
+SNAPSHOT_DIR = "/root/geminicli/weby-homelab/niftywall/snapshots"
 
 class NftablesHandler:
     def __init__(self):
         # Use full path for the nft binary
         self.nft_cmd = "/usr/sbin/nft"
+        if not os.path.exists(SNAPSHOT_DIR):
+            os.makedirs(SNAPSHOT_DIR)
+
+    def _create_snapshot(self, action_name: str):
+        """Creates a backup snapshot before mutating rules."""
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_action = "".join([c if c.isalnum() else "_" for c in action_name])
+            filename = f"{timestamp}_{safe_action}.nft"
+            filepath = os.path.join(SNAPSHOT_DIR, filename)
+            
+            result = subprocess.run(
+                [self.nft_cmd, "list", "ruleset"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            with open(filepath, 'w') as f:
+                f.write(result.stdout)
+                
+            # Cleanup old snapshots (keep last 20)
+            snapshots = sorted(glob.glob(os.path.join(SNAPSHOT_DIR, "*.nft")))
+            if len(snapshots) > 20:
+                for old_snap in snapshots[:-20]:
+                    os.remove(old_snap)
+        except Exception as e:
+            print(f"Snapshot creation failed: {e}")
+
+    def list_snapshots(self) -> list:
+        """Returns a list of available snapshots."""
+        snapshots = []
+        try:
+            files = sorted(glob.glob(os.path.join(SNAPSHOT_DIR, "*.nft")), reverse=True)
+            for file in files:
+                basename = os.path.basename(file)
+                # Format: YYYYMMDD_HHMMSS_action.nft
+                parts = basename.replace(".nft", "").split("_", 2)
+                if len(parts) >= 3:
+                    date_str, time_str, action = parts[0], parts[1], parts[2]
+                    dt = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+                    snapshots.append({
+                        "filename": basename,
+                        "timestamp": dt.isoformat(),
+                        "action": action.replace("_", " ")
+                    })
+        except Exception as e:
+            print(f"Error listing snapshots: {e}")
+        return snapshots
+
+    def restore_snapshot(self, filename: str) -> bool:
+        """Restores ruleset from a snapshot file."""
+        filepath = os.path.join(SNAPSHOT_DIR, filename)
+        if not os.path.exists(filepath):
+            return False
+        try:
+            # First, flush ruleset completely to avoid duplicate/conflicting rules
+            subprocess.run([self.nft_cmd, "flush", "ruleset"], check=True)
+            # Then restore from file
+            subprocess.run([self.nft_cmd, "-f", filepath], check=True)
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to restore snapshot: {e}")
+            return False
 
     def get_ruleset(self) -> Dict[str, Any]:
         """
@@ -47,8 +115,8 @@ class NftablesHandler:
     def delete_rule(self, family: str, table: str, chain: str, handle: int) -> bool:
         """
         Deletes a specific rule by its handle.
-        Command: nft delete rule <family> <table> <chain> handle <handle>
         """
+        self._create_snapshot(f"delete_rule_{handle}")
         try:
             subprocess.run(
                 [self.nft_cmd, "delete", "rule", family, table, chain, "handle", str(handle)],
@@ -63,6 +131,7 @@ class NftablesHandler:
         """
         Adds a rule to accept traffic on a specific port. (Legacy simple method)
         """
+        self._create_snapshot(f"add_port_{protocol}_{port}")
         try:
             subprocess.run(
                 [self.nft_cmd, "add", "rule", family, table, chain, protocol, "dport", str(port), "counter", "accept"],
@@ -76,8 +145,8 @@ class NftablesHandler:
     def add_advanced_rule(self, family: str, table: str, chain: str, protocol: str, ports: str, source: str, action: str, rate_enabled: bool, rate: int, unit: str, burst: int) -> dict:
         """
         Builds and applies a complex nftables rule including optional rate limiting via dynamic sets.
-        Returns a dict with {"success": bool, "message": str}
         """
+        self._create_snapshot(f"add_advanced_rule_{protocol}_{ports}")
         commands = []
         
         # Format ports. If comma-separated, wrap in {}
@@ -146,8 +215,8 @@ class NftablesHandler:
     def add_set_element(self, family: str, table: str, set_name: str, element: str) -> bool:
         """
         Adds an element to a set.
-        Command: nft add element <family> <table> <set_name> { <element> }
         """
+        self._create_snapshot(f"add_to_set_{set_name}")
         try:
             subprocess.run(
                 [self.nft_cmd, "add", "element", family, table, set_name, "{", element, "}"],
@@ -161,8 +230,8 @@ class NftablesHandler:
     def delete_set_element(self, family: str, table: str, set_name: str, element: str) -> bool:
         """
         Deletes an element from a set.
-        Command: nft delete element <family> <table> <set_name> { <element> }
         """
+        self._create_snapshot(f"remove_from_set_{set_name}")
         try:
             # Note: for prefixes or specific types, formatting might need care
             subprocess.run(
@@ -179,6 +248,7 @@ class NftablesHandler:
         Adds a DNAT (Port Forwarding) rule.
         Also adds a corresponding accept rule in the forward chain so traffic isn't dropped.
         """
+        self._create_snapshot("add_nat_rule")
         match_expr = f"{protocol} dport {external_port}"
         
         # For IPv6, the internal IP must be wrapped in brackets [ ] for dnat if it includes a port
@@ -216,6 +286,7 @@ class NftablesHandler:
         Panic mode: flushes the input chain and only allows established connections,
         lo interface, SSH (22, 54322) and Tailscale traffic (tailscale0).
         """
+        self._create_snapshot("panic_mode")
         rules = """
         flush chain inet filter input
         add rule inet filter input iif "lo" accept

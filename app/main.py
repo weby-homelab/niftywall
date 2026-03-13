@@ -194,6 +194,20 @@ async def delete_set_element(req: SetElementRequest, user: str = Depends(get_cur
         return {"status": "success", "message": f"Removed {req.element} from {req.set_name}"}
     raise HTTPException(status_code=500, detail="Failed to remove element")
 
+@app.get("/api/snapshots")
+async def get_snapshots(user: str = Depends(get_current_user)):
+    """API endpoint to get available snapshots for Time Machine."""
+    return nft.list_snapshots()
+
+@app.post("/api/snapshots/restore/{filename}")
+async def restore_snapshot(filename: str, user: str = Depends(get_current_user)):
+    """API endpoint to restore a snapshot."""
+    success = nft.restore_snapshot(filename)
+    if success:
+        log_action(user, "RESTORE_SNAPSHOT", f"Restored ruleset from {filename}")
+        return {"status": "success", "message": f"Successfully restored to {filename}."}
+    raise HTTPException(status_code=500, detail="Failed to restore snapshot.")
+
 @app.get("/api/audit")
 async def get_audit_log(user: str = Depends(get_current_user)):
     logs = []
