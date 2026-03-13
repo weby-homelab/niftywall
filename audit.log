@@ -3,3 +3,6 @@
 {"timestamp": "2026-03-12T21:39:07", "user": "AddMax13", "action": "DELETE_RULE", "details": "Removed rule 63 from ip nat PREROUTING"}
 {"timestamp": "2026-03-12T21:42:56", "user": "AddMax13", "action": "SET_REMOVE", "details": "Removed 2.2.2.22 from banned4"}
 {"timestamp": "2026-03-12T21:43:05", "user": "AddMax13", "action": "SET_ADD", "details": "Added 3.3.3.3 to banned4"}
+{"timestamp": "2026-03-12T21:45:43", "user": "AddMax13", "action": "SET_REMOVE", "details": "Removed 3.3.3.3 from banned4"}
+{"timestamp": "2026-03-13T07:56:11", "user": "AddMax13", "action": "BACKUP", "details": "Created /etc/nftables.conf.backup"}
+{"timestamp": "2026-03-13T07:56:39", "user": "AddMax13", "action": "SET_ADD", "details": "Added 2.2.2.22 to banned4"}
