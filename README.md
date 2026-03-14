@@ -7,78 +7,92 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v1.4.1
+# 🛡️ NiftyWall v1.5.0 "Smart Insights"
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-**NiftyWall** (колишній NFTables Dashboard) — це легкий, безпечний і сучасний веб-дашборд для перегляду та керування конфігураціями фаєрвола `nftables` на Linux-серверах (зокрема Ubuntu 24.04).
+[![Version](https://img.shields.io/badge/version-1.5.0-emerald.svg)](https://github.com/weby-homelab/niftywall)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
 
-Він працює напряму з ядром (без абстракцій типу `firewalld` чи `ufw`) і перетворює складний термінальний вивід на зручний інструмент з аналітикою в реальному часі. Ідеально підходить для серверів із Docker.
-
-## ✨ Що нового у версії 1.4.1 (Smart Clone & Edit)
-
-- **📝 Smart Clone (Редагування правил):** Тепер ви можете редагувати будь-яке існуюче правило! Кнопка "Clone" біля правила автоматично заповнює форму Rule Builder усіма параметрами старого правила. Ви можете змінити порт, IP або ліміт і в один клік створити оновлену версію.
-- **🕰️ Машина часу (Auto-Snapshots):** Відчуйте себе в безпеці! Перед кожною зміною фаєрвола NiftyWall автоматично робить знімок поточної конфігурації.
-- **🔀 Розумне керування NAT (Port Forwarding):** Повноцінна вкладка для прокидання портів (DNAT) ззовні до внутрішніх сервісів. NiftyWall автоматично додає необхідні дозволи у ланцюжок `FORWARD`.
-- **🛡️ Rule Builder з Anti-DDoS:** Модальне вікно для створення складних правил з лімітуванням трафіку.
-- **🕵️‍♂️ Інтеграція з Fail2Ban:** Відображення причин блокування (Jails) та часу прямо на вкладці Dynamic Sets.
-- **🌍 Інтелектуальна Геолокація:** Автоматичне визначення країни та міста для IP-адрес.
-- **📈 Живі графіки активності (Sparklines):** Візуалізація трафіку в реальному часі для кожного правила.
-- **📜 Аудит-лог (Audit Log):** Повна історія всіх дій користувачів.
-
-## 🚀 Основні можливості
-
-- **Human-Readable Форматування:** Замість "сирого" JSON-виводу nftables ви бачите зрозумілі кольорові бейджі (`TCP Port = 80, 443`, `DNAT ➔ 172.17.0.2`).
-- **Керування динамічними наборами (Dynamic Sets):** Інтерфейс для керування списками IP (наприклад, `banned4` або `allow_list`).
-- **Panic Mode:** Кнопка екстреного блокування всього вхідного трафіку, крім критично важливого (SSH, Tailscale).
-- **Резервне копіювання:** Створення бекапу поточної конфігурації у `/etc/nftables.conf.backup`.
-- **Безпека:** Авторизація через JWT-токени, захист від Brute Force та робота виключно на localhost.
-
-## 🛠️ Встановлення (Ubuntu 24.04)
-
-```bash
-# 1. Клонування репозиторію
-git clone https://github.com/weby-homelab/niftywall.git
-cd niftywall
-
-# 2. Створення віртуального середовища
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Налаштування середовища
-cp .env.example .env
-# Відредагуйте .env, вкажіть ваш пароль та згенеруйте надійний SECRET_KEY (наприклад, через openssl rand -hex 32)
-```
-
-### Запуск як Systemd-сервіс (Рекомендовано)
-Створіть файл `/etc/systemd/system/niftywall.service`:
-
-```ini
-[Unit]
-Description=NiftyWall Firewall Dashboard
-After=network.target nftables.service
-
-[Service]
-User=root
-Group=root
-WorkingDirectory=/opt/niftywall
-Environment="PATH=/opt/niftywall/venv/bin"
-ExecStart=/opt/niftywall/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-Потім запустіть: `systemctl daemon-reload && systemctl enable --now niftywall.service`
-
-## 📝 Історія оновлень
-- **v1.5.0**: "Smart Insights" — Додано живі графіки CPU/RAM/Uptime, повна мобільна адаптивність, інтелектуальний Whois та керування Fail2Ban (Unban). Впроваджено систему легкого онбордінгу.
-
-## 📋 Системні вимоги
-
-- Ubuntu 24.04 (або інший сучасний Linux з `nftables` 1.0.9+)
-- Python 3.10+
-- Права `root` для виконання команд `nft`.
+**NiftyWall** — це професійний веб-дашборд для керування `nftables`, створений для тих, хто цінує швидкість, естетику та повний контроль. На відміну від UFW чи Firewalld, NiftyWall не створює "свій світ" правил, а працює безпосередньо з ядром Linux, візуалізуючи реальний стан вашого фаєрвола.
 
 ---
-© 2026 Weby Homelab. Створено для тих, хто цінує контроль та естетику в системному адмініструванні.
+
+## 🧩 Архітектура системи
+
+```mermaid
+graph TD
+    User((Адміністратор)) -->|HTTPS / PWA| UI[Web Dashboard]
+    
+    subgraph "NiftyWall Core"
+        UI -->|REST API / JWT| API[FastAPI Backend]
+        API -->|Subprocess / JSON| NFT[nftables Engine]
+        API -->|Log Analysis| F2B[Fail2Ban Parser]
+        API -->|Metrics| SYS[psutil System Monitor]
+    end
+
+    subgraph "Linux Kernel"
+        NFT -->|Netlink| Netfilter[Kernel Hooks]
+        Netfilter -->|Packet Counters| NFT
+    end
+
+    F2B -.->|GeoIP| WHO[Whois API]
+    API -->|Persistence| JSON[(users.json / history.json)]
+```
+
+---
+
+## ✨ Нове у версії 1.5.0 (Smart Insights)
+
+- **📈 Системна аналітика:** Живі графіки завантаження CPU та RAM, а також історія стабільності Uptime.
+- **📱 Повна мобільна адаптивність:** Новий "картковий" інтерфейс для смартфонів та скрол-таби.
+- **🚀 Easy Onboarding:** Миттєва реєстрація першого адміністратора при запуску.
+- **🌍 Інтелектуальний Whois:** Детальна інформація про провайдера та країну будь-якої IP в один клік.
+- **🛡️ Fail2Ban Pro:** Можливість розбанювати IP безпосередньо з дашборду.
+
+## 🚀 Ключові переваги
+
+- **Direct nftables Engine:** Робота з нативним JSON-форматом nftables. Жодних конфліктів із правилами Docker.
+- **🕰️ Time Machine (Snapshots):** Автоматичне створення знімків конфігурації перед кожною зміною. Безпечний відкат в один клік.
+- **📈 Activity Monitoring:** Спарклайни для кожного правила показують активність трафіку (pkts/sec) в реальному часі.
+- **🚨 Panic Mode 2.0:** Миттєве блокування всього зайвого зі збереженням доступу до SSH та самого NiftyWall.
+- **🔀 Smart NAT:** Легке керування прокиданням портів з автоматичним налаштуванням ланцюжків FORWARD.
+
+---
+
+## 🛠️ Швидкий старт
+
+### Через Docker (Рекомендовано)
+```bash
+docker pull webyhomelab/niftywall:latest
+docker run -d --name niftywall --privileged --network host webyhomelab/niftywall:latest
+```
+*Примітка: `--privileged` та `--network host` необхідні для прямої взаємодії з nftables.*
+
+### Ручне встановлення (Ubuntu 24.04)
+```bash
+git clone https://github.com/weby-homelab/niftywall.git
+cd niftywall
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# Запустіть сервіс через systemd (див. документацію нижче)
+```
+
+---
+
+## 📜 Історія оновлень
+- **v1.5.0**: Реліз "Smart Insights". Графіки, мобільний інтерфейс, Unban, Whois.
+- **v1.4.1**: Smart Clone & Edit, автоматичні снапшоти, вдосконалений NAT.
+- **v1.3.0**: Інтеграція з Fail2Ban (read-only), геолокація IP.
+
+## 📋 Системні вимоги
+- **ОС:** Ubuntu 24.04 (LTS) або сучасний Linux з ядром 6.8+.
+- **Ядро:** nftables 1.0.9 або новіше.
+- **Доступ:** Права `root` для керування правилами.
+
+---
+<p align="center">
+  Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
+  <strong>✦ 2026 Weby Homelab ✦</strong>
+</p>
