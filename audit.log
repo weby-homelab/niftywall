@@ -6,3 +6,13 @@
 {"timestamp": "2026-03-12T21:45:43", "user": "AddMax13", "action": "SET_REMOVE", "details": "Removed 3.3.3.3 from banned4"}
 {"timestamp": "2026-03-13T07:56:11", "user": "AddMax13", "action": "BACKUP", "details": "Created /etc/nftables.conf.backup"}
 {"timestamp": "2026-03-13T07:56:39", "user": "AddMax13", "action": "SET_ADD", "details": "Added 2.2.2.22 to banned4"}
+{"timestamp": "2026-03-13T08:31:57", "user": "AddMax13", "action": "SET_REMOVE", "details": "Removed 2.2.2.22 from banned4"}
+{"timestamp": "2026-03-13T08:32:40", "user": "AddMax13", "action": "SET_ADD", "details": "Added 91.210.248.0/22 to ssh_allow4"}
+{"timestamp": "2026-03-13T08:33:00", "user": "AddMax13", "action": "SET_ADD", "details": "Added 31.43.144.0/20 to ssh_allow4"}
+{"timestamp": "2026-03-13T08:33:48", "user": "AddMax13", "action": "SET_ADD", "details": "Added 100.64.0.0/10 to ssh_allow4"}
+{"timestamp": "2026-03-13T09:03:00", "user": "AddMax13", "action": "SET_ADD", "details": "Added 127.0.0.1/32 to ssh_allow4"}
+{"timestamp": "2026-03-13T09:04:06", "user": "AddMax13", "action": "SET_ADD", "details": "Added 91.210.240.0/22 to ssh_allow4"}
+{"timestamp": "2026-03-13T09:05:08", "user": "AddMax13", "action": "SET_ADD", "details": "Added 187.157.88.116 to banned4"}
+{"timestamp": "2026-03-13T11:39:13", "user": "AddMax13", "action": "ADD_NAT", "details": "NAT: tcp 5555 -> 172.19.0.11:8888"}
+{"timestamp": "2026-03-13T11:39:50", "user": "AddMax13", "action": "DELETE_RULE", "details": "Removed rule 64 from ip nat PREROUTING"}
+{"timestamp": "2026-03-14T14:02:30", "user": "AddMax", "action": "BACKUP", "details": "Created /etc/nftables.conf.backup"}

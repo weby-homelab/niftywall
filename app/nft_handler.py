@@ -284,7 +284,7 @@ class NftablesHandler:
     def apply_panic_mode(self) -> bool:
         """
         Panic mode: flushes the input chain and only allows established connections,
-        lo interface, SSH (22, 54322) and Tailscale traffic (tailscale0).
+        lo interface, SSH (22, 54322), NiftyWall (8080) and Tailscale traffic (tailscale0).
         """
         self._create_snapshot("panic_mode")
         rules = """
@@ -293,7 +293,7 @@ class NftablesHandler:
         add rule inet filter input ct state established,related accept
         add rule inet filter input icmp type echo-request accept
         add rule inet filter input icmpv6 type echo-request accept
-        add rule inet filter input tcp dport { 22, 54322 } accept
+        add rule inet filter input tcp dport { 22, 8080, 54322 } accept
         add rule inet filter input iifname "tailscale0" accept
         """
         try:
