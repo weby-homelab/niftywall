@@ -1,0 +1,234 @@
+table inet filter {
+	set ssh_allow4 {
+		type ipv4_addr
+		flags interval
+		elements = { 31.43.144.0/20, 91.210.248.0/22,
+			     100.64.0.0/10, 176.111.176.0/21,
+			     176.111.184.0/22, 176.111.190.0/24 }
+	}
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+		ct state { established, related } accept
+		ct state invalid drop
+		iif "lo" accept
+		ip protocol icmp accept
+		ip6 nexthdr ipv6-icmp accept
+		iifname "tailscale0" accept
+		udp dport 41641 accept
+		tcp dport 54322 accept
+		udp dport 53 limit rate 20/second burst 50 packets accept
+		tcp dport 53 limit rate 20/second burst 50 packets accept
+		udp dport 853 accept
+		tcp dport 853 accept
+		tcp dport { 80, 443 } accept
+		tcp dport 5061 accept
+		udp dport 10000-19999 accept
+		tcp dport 3001 accept
+		counter packets 26163 bytes 2200967
+		tcp dport 5050 accept
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+		ct state { established, related } accept
+		ct state invalid drop
+		iifname "tailscale0" oifname "eth0" accept
+		iifname "docker0" accept
+		oifname "docker0" accept
+		iifname "br-*" accept
+		oifname "br-*" accept
+		log prefix "NFT_DROP_FWD: "
+		ip daddr 172.19.0.22 tcp dport 3333 counter packets 0 bytes 0 accept
+	}
+}
+table inet f2b_global {
+	set banned4 {
+		type ipv4_addr
+		elements = { 187.157.88.115 }
+	}
+
+	set banned6 {
+		type ipv6_addr
+	}
+
+	chain input {
+		type filter hook input priority -100; policy accept;
+		ip saddr @banned4 counter packets 208184 bytes 13897627 drop
+		ip6 saddr @banned6 counter packets 0 bytes 0 drop
+	}
+
+	chain forward {
+		type filter hook forward priority -100; policy accept;
+		ip saddr @banned4 counter packets 0 bytes 0 drop
+		ip6 saddr @banned6 counter packets 0 bytes 0 drop
+	}
+}
+table ip nat {
+	chain PREROUTING {
+		type nat hook prerouting priority dstnat; policy accept;
+		fib daddr type local counter packets 708512 bytes 42999034 jump DOCKER
+	}
+
+	chain OUTPUT {
+		type nat hook output priority dstnat; policy accept;
+		ip daddr != 127.0.0.0/8 fib daddr type local counter packets 9712 bytes 599464 jump DOCKER
+	}
+
+	chain POSTROUTING {
+		type nat hook postrouting priority srcnat; policy accept;
+		ip saddr 172.17.0.0/16 oifname != "docker0" counter packets 61 bytes 9272 masquerade
+		ip saddr 172.18.0.0/16 oifname != "br-97ae768072cb" counter packets 2104 bytes 133324 masquerade
+		counter packets 877040 bytes 89797600 jump ts-postrouting
+		ip saddr 172.19.0.0/16 oifname != "br-18aaf031ee6d" counter packets 191275 bytes 15101076 masquerade
+		ip saddr 100.64.0.0/10 oifname "eth0" counter packets 0 bytes 0 masquerade
+	}
+
+	chain ts-postrouting {
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 14827 bytes 10160080 masquerade
+	}
+
+	chain DOCKER {
+		iifname != "br-97ae768072cb" tcp dport 3552 counter packets 2 bytes 120 dnat to 172.18.0.2:3552
+		iifname != "br-18aaf031ee6d" tcp dport 3001 counter packets 0 bytes 0 dnat to 172.19.0.2:3001
+	}
+}
+table ip filter {
+	chain DOCKER-FORWARD {
+		counter packets 11298285 bytes 10100607810 jump DOCKER-CT
+		counter packets 8703923 bytes 9914994535 jump DOCKER-INTERNAL
+		counter packets 8703923 bytes 9914994535 jump DOCKER-BRIDGE
+		iifname "br-18aaf031ee6d" counter packets 2598065 bytes 323485732 accept
+		iifname "br-97ae768072cb" counter packets 15508 bytes 4125021 accept
+		iifname "docker0" counter packets 0 bytes 0 accept
+	}
+
+	chain FORWARD {
+		type filter hook forward priority filter; policy accept;
+		counter packets 11298285 bytes 10100607810 jump DOCKER-USER
+		counter packets 11298285 bytes 10100607810 jump DOCKER-FORWARD
+		counter packets 27696075 bytes 23210629782 jump ts-forward
+	}
+
+	chain DOCKER-USER {
+	}
+
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+		counter packets 31833575 bytes 7635113288 jump ts-input
+	}
+
+	chain ts-input {
+		ip saddr 100.83.52.116 iifname "lo" counter packets 0 bytes 0 accept
+		ip saddr 100.115.92.0/23 iifname != "tailscale0" counter packets 0 bytes 0 return
+		ip saddr 100.64.0.0/10 iifname != "tailscale0" counter packets 1 bytes 56 drop
+		iifname "tailscale0" counter packets 128513 bytes 14638914 accept
+		udp dport 41641 counter packets 1891605 bytes 889836992 accept
+	}
+
+	chain ts-forward {
+		iifname "tailscale0" counter packets 8468074 bytes 454102412 meta mark set mark and 0xff00ffff xor 0x40000
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 8468074 bytes 454102412 accept
+		ip saddr 100.64.0.0/10 oifname "tailscale0" counter packets 0 bytes 0 drop
+		oifname "tailscale0" counter packets 4394176 bytes 20806325291 accept
+	}
+
+	chain DOCKER {
+		ip daddr 172.19.0.2 iifname != "br-18aaf031ee6d" oifname "br-18aaf031ee6d" tcp dport 3001 counter packets 0 bytes 0 accept
+		ip daddr 172.18.0.2 iifname != "br-97ae768072cb" oifname "br-97ae768072cb" tcp dport 3552 counter packets 2 bytes 120 accept
+		iifname != "br-18aaf031ee6d" oifname "br-18aaf031ee6d" counter packets 0 bytes 0 drop
+		iifname != "br-97ae768072cb" oifname "br-97ae768072cb" counter packets 0 bytes 0 drop
+		iifname != "docker0" oifname "docker0" counter packets 0 bytes 0 drop
+	}
+
+	chain DOCKER-BRIDGE {
+		oifname "br-18aaf031ee6d" counter packets 0 bytes 0 jump DOCKER
+		oifname "br-97ae768072cb" counter packets 2 bytes 120 jump DOCKER
+		oifname "docker0" counter packets 0 bytes 0 jump DOCKER
+	}
+
+	chain DOCKER-CT {
+		oifname "br-18aaf031ee6d" ct state related,established counter packets 2577219 bytes 179631599 accept
+		oifname "br-97ae768072cb" ct state related,established counter packets 17143 bytes 5981676 accept
+		oifname "docker0" ct state related,established counter packets 0 bytes 0 accept
+	}
+
+	chain DOCKER-INTERNAL {
+	}
+}
+table ip6 nat {
+	chain PREROUTING {
+		type nat hook prerouting priority dstnat; policy accept;
+		fib daddr type local counter packets 0 bytes 0 jump DOCKER
+	}
+
+	chain OUTPUT {
+		type nat hook output priority dstnat; policy accept;
+		ip6 daddr != ::1 fib daddr type local counter packets 0 bytes 0 jump DOCKER
+	}
+
+	chain POSTROUTING {
+		type nat hook postrouting priority srcnat; policy accept;
+		counter packets 67562 bytes 5537768 jump ts-postrouting
+	}
+
+	chain ts-postrouting {
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 552 bytes 39744 xt target "MASQUERADE"
+	}
+
+	chain DOCKER {
+	}
+}
+table ip6 filter {
+	chain DOCKER-FORWARD {
+		counter packets 2998 bytes 336640 jump DOCKER-CT
+		counter packets 2998 bytes 336640 jump DOCKER-INTERNAL
+		counter packets 2998 bytes 336640 jump DOCKER-BRIDGE
+	}
+
+	chain FORWARD {
+		type filter hook forward priority filter; policy accept;
+		counter packets 2998 bytes 336640 jump DOCKER-USER
+		counter packets 2998 bytes 336640 jump DOCKER-FORWARD
+		counter packets 14538 bytes 5150668 jump ts-forward
+	}
+
+	chain DOCKER-USER {
+	}
+
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+		counter packets 1216339 bytes 384033206 jump ts-input
+	}
+
+	chain ts-input {
+		ip6 saddr fd7a:115c:a1e0::af34:3474 iifname "lo" counter packets 0 bytes 0 accept
+		iifname "tailscale0" counter packets 0 bytes 0 accept
+		udp dport 41641 counter packets 24487 bytes 2252804 accept
+	}
+
+	chain ts-forward {
+		iifname "tailscale0" counter packets 7174 bytes 4265718 meta mark set mark and 0xff00ffff xor 0x40000
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 7174 bytes 4265718 accept
+		oifname "tailscale0" counter packets 7364 bytes 884950 accept
+	}
+
+	chain DOCKER {
+	}
+
+	chain DOCKER-BRIDGE {
+	}
+
+	chain DOCKER-CT {
+	}
+
+	chain DOCKER-INTERNAL {
+	}
+}
+table ip raw {
+	chain PREROUTING {
+		type filter hook prerouting priority raw; policy accept;
+		ip daddr 172.19.0.2 iifname != "br-18aaf031ee6d" counter packets 0 bytes 0 drop
+		ip daddr 172.18.0.2 iifname != "br-97ae768072cb" counter packets 0 bytes 0 drop
+	}
+}

@@ -22,53 +22,170 @@
         }
     </script>
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --danger: #f43f5e;
+            --warning: #f59e0b;
+            --accent: #8b5cf6;
+        }
+
         .glass {
-            background: rgba(31, 41, 55, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
         }
+
         .tab-active {
-            border-bottom: 2px solid #10b981;
+            border-bottom: 2px solid var(--success);
             color: white;
+            background: rgba(16, 185, 129, 0.05);
         }
+
+        /* Mobile specific enhancements */
+        @media (max-width: 768px) {
+            .mobile-hide { display: none !important; }
+            .mobile-stack { flex-direction: column !important; align-items: flex-start !important; gap: 1rem !important; }
+            .container { padding-left: 1rem; padding-right: 1rem; }
+            
+            /* Make action buttons in rules stackable */
+            .rule-actions { width: 100%; justify-content: flex-end; margin-top: 1rem; border-top: 1px solid var(--card-border); padding-top: 0.75rem; }
+            
+            /* Horizontal scrolling for tabs on mobile */
+            .tabs-container { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+            .tabs-container::-webkit-scrollbar { display: none; }
+            .tab-btn { flex-shrink: 0; }
+        }
+
+        /* Better Sparklines size on mobile */
+        canvas { max-width: 100%; }
+        
+        /* Custom scrollbar for desktop */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
-    <div class="container mx-auto px-4 py-8 max-w-5xl">
-        <header class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-                    <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                    NiftyWall
-                </h1>
-                <p class="text-gray-400 mt-1">Smart Linux Firewall Management</p>
+    <div class="container mx-auto px-4 py-6 md:py-12 max-w-6xl">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 md:mb-12">
+            <div class="flex items-center justify-between w-full md:w-auto">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <i class="fas fa-shield-halved"></i>
+                        </div>
+                        NiftyWall
+                    </h1>
+                    <p class="text-gray-400 mt-1 text-sm md:text-base">Smart Linux Firewall Management</p>
+                </div>
+                
+                <!-- Mobile Logout/Refresh icons -->
+                <div class="flex md:hidden gap-3">
+                    <button onclick="refreshData()" class="w-10 h-10 glass rounded-lg flex items-center justify-center text-gray-400">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button onclick="window.location.href='/logout'" class="w-10 h-10 glass rounded-lg flex items-center justify-center text-red-400">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
             </div>
-            <div class="flex gap-4 items-center">
-                <button onclick="panicMode()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 rounded-md transition-colors text-sm font-bold flex items-center gap-2" title="Block all incoming traffic except SSH and Tailscale">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <button id="panic-btn" onclick="panicMode()" class="flex-1 md:flex-none px-4 py-2.5 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
+                    <i class="fas fa-radiation"></i>
                     Panic Mode
                 </button>
-                <div class="h-6 w-px bg-gray-700 mx-2"></div>
-                <button onclick="refreshData()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-md transition-colors text-sm font-medium text-gray-300">
-                    Refresh
+                <button id="exit-panic-btn" onclick="exitPanicMode()" class="hidden flex-1 md:flex-none px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/50 text-emerald-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
+                    <i class="fas fa-shield-heart"></i>
+                    Exit Panic Mode
                 </button>
-                <button onclick="backupRules()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-md transition-colors text-sm font-medium text-white shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                    Backup Rules
+                
+                <div class="hidden md:flex h-8 w-px bg-gray-700 mx-1"></div>
+                
+                <button onclick="refreshData()" class="hidden md:flex px-4 py-2.5 glass hover:bg-gray-800 rounded-xl transition-all text-sm font-medium text-gray-300 items-center gap-2">
+                    <i class="fas fa-sync-alt"></i> Refresh
                 </button>
-                <button onclick="window.location.href='/logout'" class="px-4 py-2 bg-gray-800/80 hover:bg-red-900/40 border border-gray-700 hover:border-red-500/50 text-gray-400 hover:text-red-400 rounded-md transition-all text-sm font-medium">
-                    Logout
+                <button onclick="backupRules()" class="hidden md:flex px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all text-sm font-medium text-white shadow-lg shadow-emerald-500/20 items-center gap-2">
+                    <i class="fas fa-file-export"></i> Backup
+                </button>
+                <button onclick="window.location.href='/logout'" class="hidden md:flex px-4 py-2.5 glass hover:bg-red-900/20 border-gray-700 hover:border-red-500/50 text-gray-400 hover:text-red-400 rounded-xl transition-all text-sm font-medium items-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
             </div>
         </header>
 
+        <!-- System Metrics Row -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-8 md:mb-12">
+            <div class="glass p-4 rounded-2xl flex items-center justify-between gap-3 col-span-2 md:col-span-1">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-sm md:text-base">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">CPU</p>
+                        <p id="cpu-usage" class="text-base md:text-xl font-bold text-white">--</p>
+                    </div>
+                </div>
+                <div class="w-24 md:w-32 h-8 md:h-10">
+                    <canvas id="cpu-chart"></canvas>
+                </div>
+            </div>
+            <div class="glass p-4 rounded-2xl flex items-center justify-between gap-3 col-span-2 md:col-span-1">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm md:text-base">
+                        <i class="fas fa-memory"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">RAM</p>
+                        <p id="mem-usage" class="text-base md:text-xl font-bold text-white">--</p>
+                    </div>
+                </div>
+                <div class="w-24 md:w-32 h-8 md:h-10">
+                    <canvas id="ram-chart"></canvas>
+                </div>
+            </div>
+            <div class="glass p-4 rounded-2xl flex items-center justify-between gap-3 col-span-2 md:col-span-1">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 text-sm md:text-base">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Uptime</p>
+                        <p id="system-uptime" class="text-base md:text-xl font-bold text-white">--</p>
+                    </div>
+                </div>
+                <div class="w-24 md:w-32 h-8 md:h-10">
+                    <canvas id="uptime-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- Navigation Tabs -->
-        <div class="flex gap-8 border-b border-gray-700 mb-8">
-            <button onclick="switchTab('rules')" id="tab-rules" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all tab-active">Firewall Rules</button>
-            <button onclick="switchTab('nat')" id="tab-nat" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Port Forwarding</button>
-            <button onclick="switchTab('sets')" id="tab-sets" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Dynamic Sets</button>
-            <button onclick="switchTab('timemachine')" id="tab-timemachine" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Time Machine</button>
-            <button onclick="switchTab('audit')" id="tab-audit" class="pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all">Audit Log</button>
+        <div class="tabs-container flex gap-4 md:gap-8 border-b border-gray-800 mb-8 overflow-x-auto pb-px">
+            <button onclick="switchTab('rules')" id="tab-rules" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all tab-active flex items-center gap-2">
+                <i class="fas fa-list-check"></i> Rules
+            </button>
+            <button onclick="switchTab('nat')" id="tab-nat" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                <i class="fas fa-random"></i> NAT
+            </button>
+            <button onclick="switchTab('sets')" id="tab-sets" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                <i class="fas fa-database"></i> Sets
+            </button>
+            <button onclick="switchTab('timemachine')" id="tab-timemachine" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                <i class="fas fa-history"></i> Time Machine
+            </button>
+            <button onclick="switchTab('audit')" id="tab-audit" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                <i class="fas fa-clipboard-list"></i> Audit
+            </button>
         </div>
 
         <div id="loading" class="text-center py-12 text-gray-400 hidden">
@@ -275,6 +392,23 @@
         </footer>
     </div>
 
+    <!-- WHOIS Modal -->
+    <div id="whois-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-[100]">
+        <div class="glass p-6 rounded-xl w-full max-w-md border border-gray-600 shadow-2xl relative">
+            <button onclick="closeWhois()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <i class="fas fa-earth-americas text-indigo-400"></i>
+                IP Information (Whois)
+            </h2>
+            <div id="whois-content" class="text-sm text-gray-300 leading-relaxed">
+                Loading...
+            </div>
+            <button onclick="closeWhois()" class="w-full mt-6 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-bold transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
+
     <script>
         let currentTab = 'rules';
         const geoCache = new Map();
@@ -284,13 +418,156 @@
         function switchTab(tab) {
             currentTab = tab;
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            const content = document.getElementById(`content-${tab}`);
+            if (content) content.classList.remove('hidden');
             
-            document.querySelectorAll('header + div button').forEach(b => b.classList.remove('tab-active'));
-            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            // Fixed selector for tab buttons
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+            const activeTab = document.getElementById(`tab-${tab}`);
+            if (activeTab) activeTab.classList.add('tab-active');
             
             refreshData();
         }
+
+        // System Status
+        async function fetchSystemStatus() {
+            try {
+                const res = await fetch('/api/system/status');
+                const data = await res.json();
+                document.getElementById('cpu-usage').innerText = data.cpu_usage + '%';
+                document.getElementById('mem-usage').innerText = data.memory_usage + '%';
+                
+                // Format uptime
+                const hours = Math.floor(data.uptime / 3600);
+                const days = Math.floor(hours / 24);
+                const displayHours = hours % 24;
+                document.getElementById('system-uptime').innerText = `${days}d ${displayHours}h`;
+            } catch (e) { console.error('Failed to fetch system status', e); }
+        }
+
+        async function unbanIP(ip, jail) {
+            if (!confirm(`Are you sure you want to unban ${ip}?`)) return;
+            showLoading(true);
+            try {
+                const res = await fetch('/api/fail2ban/unban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, jail })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showSuccess(data.message);
+                    refreshData(); // Refresh to update sets
+                } else {
+                    showError(data.detail);
+                }
+            } catch (e) { showError('Unban failed: ' + e); }
+            finally { showLoading(false); }
+        }
+
+        async function showWhois(ip) {
+            document.getElementById('whois-content').innerText = 'Loading...';
+            document.getElementById('whois-modal').classList.remove('hidden');
+            try {
+                const res = await fetch(`/api/whois/${ip}`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('whois-content').innerHTML = `
+                        <div class="space-y-2">
+                            <p><strong>Country:</strong> ${data.country} (${data.countryCode})</p>
+                            <p><strong>Region:</strong> ${data.regionName}</p>
+                            <p><strong>City:</strong> ${data.city}</p>
+                            <p><strong>ISP:</strong> ${data.isp}</p>
+                            <p><strong>ORG:</strong> ${data.org || 'N/A'}</p>
+                            <p><strong>AS:</strong> ${data.as}</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('whois-content').innerText = 'WHOIS data not found for this IP.';
+                }
+            } catch (e) { document.getElementById('whois-content').innerText = 'Failed to fetch WHOIS info.'; }
+        }
+
+        function closeWhois() {
+            document.getElementById('whois-modal').classList.add('hidden');
+        }
+
+        // System Status Charts
+        let cpuHistory = new Array(15).fill(0);
+        let ramHistory = new Array(15).fill(0);
+        let systemCharts = {};
+
+        function initSystemCharts() {
+            const chartConfig = (color, dataHistory, maxVal = 100) => ({
+                type: 'line',
+                data: {
+                    labels: dataHistory.map((_, i) => i),
+                    datasets: [{
+                        data: dataHistory,
+                        borderColor: color,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: color.replace('1)', '0.1)')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false, min: 0, max: maxVal } }
+                }
+            });
+
+            const cpuCtx = document.getElementById('cpu-chart');
+            const ramCtx = document.getElementById('ram-chart');
+            const uptimeCtx = document.getElementById('uptime-chart');
+            
+            if (cpuCtx) systemCharts.cpu = new Chart(cpuCtx, chartConfig('rgba(99, 102, 241, 1)', cpuHistory));
+            if (ramCtx) systemCharts.ram = new Chart(ramCtx, chartConfig('rgba(16, 185, 129, 1)', ramHistory));
+            if (uptimeCtx) systemCharts.uptime = new Chart(uptimeCtx, chartConfig('rgba(245, 158, 11, 1)', [], null)); // Amber color, dynamic max
+        }
+
+        async function fetchSystemStatus() {
+            try {
+                const res = await fetch('/api/system/status');
+                if (!res.ok) return;
+                const data = await res.json();
+                document.getElementById('cpu-usage').innerText = data.cpu_usage + '%';
+                document.getElementById('mem-usage').innerText = data.memory_usage + '%';
+                
+                // Update Histories
+                cpuHistory.push(data.cpu_usage);
+                cpuHistory.shift();
+                ramHistory.push(data.memory_usage);
+                ramHistory.shift();
+                
+                // Update Charts
+                if (systemCharts.cpu) systemCharts.cpu.update('none');
+                if (systemCharts.ram) systemCharts.ram.update('none');
+                
+                // Update Uptime Chart (Daily History)
+                if (systemCharts.uptime && data.uptime_history) {
+                    systemCharts.uptime.data.labels = data.uptime_history.map((_, i) => i);
+                    systemCharts.uptime.data.datasets[0].data = data.uptime_history;
+                    systemCharts.uptime.update('none');
+                }
+                
+                // Format uptime display
+                const hours = Math.floor(data.uptime / 3600);
+                const days = Math.floor(hours / 24);
+                const displayHours = hours % 24;
+                document.getElementById('system-uptime').innerText = `${days}d ${displayHours}h`;
+            } catch (e) { console.error('Failed to fetch system status', e); }
+        }
+
+        // Initialize background updates
+        setTimeout(() => {
+            initSystemCharts();
+            setInterval(fetchSystemStatus, 10000);
+            fetchSystemStatus();
+        }, 500);
 
         async function refreshData() {
             if (currentTab === 'rules' || currentTab === 'nat') fetchRules();
@@ -526,7 +803,21 @@
                     // Humanize operators
                     let op = e.match.op === '==' ? '=' : e.match.op;
                     
-                    parts.push(`<div class="bg-gray-800/80 px-2 py-1 rounded border border-gray-700/50 inline-block whitespace-nowrap"><span class="text-blue-400 font-medium">${left}</span> <span class="text-gray-500 mx-1">${op}</span> <span class="text-yellow-400 font-medium">${right}</span></div>`);
+                    // Service Mapping (Port -> Name)
+                    let serviceName = '';
+                    if (left.includes('Port')) {
+                        const portNum = parseInt(right);
+                        const services = {
+                            22: "SSH", 80: "HTTP", 443: "HTTPS", 3306: "MySQL", 5432: "PostgreSQL",
+                            6379: "Redis", 27017: "MongoDB", 5050: "FlashMonitor", 8080: "NiftyWall",
+                            54322: "SSH-Alt", 3001: "UptimeKuma", 53: "DNS"
+                        };
+                        if (services[portNum]) {
+                            serviceName = `<span class="ml-1 text-[10px] bg-indigo-500/20 text-indigo-300 px-1 rounded font-bold">${services[portNum]}</span>`;
+                        }
+                    }
+                    
+                    parts.push(`<div class="bg-gray-800/80 px-2 py-1 rounded border border-gray-700/50 inline-block whitespace-nowrap"><span class="text-blue-400 font-medium">${left}</span> <span class="text-gray-500 mx-1">${op}</span> <span class="text-yellow-400 font-medium">${right}${serviceName}</span></div>`);
                 } else if (e.limit) {
                     parts.push(`<div class="bg-purple-900/30 border border-purple-500/30 px-2 py-1 rounded inline-block whitespace-nowrap text-purple-300"><span class="font-bold">Limit:</span> ${e.limit.rate}/${e.limit.per} <span class="text-purple-400/70 text-[10px]">(burst ${e.limit.burst})</span></div>`);
                 } else if (e.accept) {
@@ -706,10 +997,14 @@
                     }
                     
                     let banBadge = '';
+                    let unbanBtn = '';
                     if (f2bInfo[val]) {
                         banBadge = `<span class="bg-red-900/40 text-red-300 border border-red-500/30 px-2 py-0.5 rounded text-[10px] ml-3 uppercase font-bold tracking-wider" title="Banned at: ${f2bInfo[val].time}">🛡️ Jail: ${f2bInfo[val].jail}</span>`;
+                        unbanBtn = `<button onclick="unbanIP('${val}', '${f2bInfo[val].jail}')" class="px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 text-[10px] font-bold rounded border border-red-500/30 transition-colors uppercase tracking-tight">Unban</button>`;
                     }
                     
+                    let whoisBtn = (typeof val === 'string' && !val.includes('/')) ? `<button onclick="showWhois('${val}')" class="text-indigo-400 hover:text-indigo-300 text-xs px-2 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-search-location"></i></button>` : '';
+
                     elementsHtml += `
                         <div class="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors group">
                             <div class="font-mono flex items-center flex-wrap gap-2">
@@ -717,8 +1012,12 @@
                                 ${val}
                                 ${banBadge}
                                 <div class="ml-2">${flag}</div>
+                                ${whoisBtn}
                             </div>
-                            <button onclick="removeSetElement('${s.family}','${s.table}','${s.name}','${val}')" class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                            <div class="flex items-center gap-3">
+                                ${unbanBtn}
+                                <button onclick="removeSetElement('${s.family}','${s.table}','${s.name}','${val}')" class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                            </div>
                         </div>
                     `;
                 }
@@ -788,12 +1087,27 @@
         }
 
         async function panicMode() {
-            if (!confirm("⚠️ WARNING: This will flush all input rules!")) return;
+            if (!confirm("⚠️ WARNING: This will flush all input rules and block everything except SSH and NiftyWall! Continue?")) return;
             setLoading(true);
             try {
                 const res = await fetch('/api/ruleset/panic', { method: 'POST' });
                 if (!res.ok) throw new Error('Panic failed');
-                showSuccess("Panic mode activated!");
+                showSuccess("🚨 Panic Mode Activated!");
+                document.getElementById('panic-btn').classList.add('hidden');
+                document.getElementById('exit-panic-btn').classList.remove('hidden');
+                refreshData();
+            } catch (err) { showError(err.message); setLoading(false); }
+        }
+
+        async function exitPanicMode() {
+            if (!confirm("Restore normal operation and exit Panic Mode?")) return;
+            setLoading(true);
+            try {
+                const res = await fetch('/api/ruleset/restore-panic', { method: 'POST' });
+                if (!res.ok) throw new Error('Restore failed');
+                showSuccess("🛡️ Normal Operation Restored");
+                document.getElementById('panic-btn').classList.remove('hidden');
+                document.getElementById('exit-panic-btn').classList.add('hidden');
                 refreshData();
             } catch (err) { showError(err.message); setLoading(false); }
         }

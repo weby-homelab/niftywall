@@ -1,3 +1,4 @@
+import subprocess
 import re
 import os
 from typing import Dict, Optional
@@ -8,6 +9,26 @@ class Fail2BanParser:
         # Example log line:
         # 2026-03-12 14:30:15,123 fail2ban.actions [1234]: NOTICE  [sshd] Ban 192.168.1.100
         self.ban_pattern = re.compile(r"^([\d\-]+ [\d:]+),\d+.*?\[([^\]]+)\] (Ban|Restore Ban) ([\d\.:a-fA-F]+)")
+
+    def unban_ip(self, ip: str, jail: str = None) -> bool:
+        """Unbans an IP using fail2ban-client. If jail is not provided, tries to find it."""
+        try:
+            if not jail:
+                # Try to get jail info from log
+                info = self.get_ban_info_for_ips([ip])
+                if ip in info:
+                    jail = info[ip]['jail']
+                else:
+                    return False
+            
+            cmd = ["fail2ban-client", "unban", ip]
+            # Some versions might require jail name
+            # cmd = ["fail2ban-client", "set", jail, "unbanip", ip]
+            subprocess.run(cmd, capture_output=True, check=True)
+            return True
+        except Exception as e:
+            print(f"Error unbanning IP {ip}: {e}")
+            return False
 
     def get_ban_info_for_ips(self, ips: list) -> Dict[str, dict]:
         """

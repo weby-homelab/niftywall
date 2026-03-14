@@ -71,6 +71,9 @@ WantedBy=multi-user.target
 ```
 Потім запустіть: `systemctl daemon-reload && systemctl enable --now niftywall.service`
 
+## 📝 Історія оновлень
+- **v1.5.0**: "Smart Insights" — Додано живі графіки CPU/RAM/Uptime, повна мобільна адаптивність, інтелектуальний Whois та керування Fail2Ban (Unban). Впроваджено систему легкого онбордінгу.
+
 ## 📋 Системні вимоги
 
 - Ubuntu 24.04 (або інший сучасний Linux з `nftables` 1.0.9+)

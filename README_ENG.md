@@ -71,6 +71,9 @@ WantedBy=multi-user.target
 ```
 Then run: `systemctl daemon-reload && systemctl enable --now niftywall.service`
 
+## 📝 Update History
+- **v1.5.0**: "Smart Insights" — Added live CPU/RAM/Uptime charts, full mobile responsiveness, intelligent Whois, and Fail2Ban management (Unban). Introduced an easy onboarding system.
+
 ## 📋 System Requirements
 
 - Ubuntu 24.04 (or any modern Linux with `nftables` 1.0.9+)
