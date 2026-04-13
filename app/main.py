@@ -51,6 +51,9 @@ class PortRequest(BaseModel):
     port: int
 
 class NATRequest(BaseModel):
+    family: str = "ip"
+    table: str = "nat"
+    chain: str = "prerouting"
     protocol: str = "tcp"
     external_port: int
     internal_ip: str
