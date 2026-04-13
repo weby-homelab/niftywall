@@ -51,9 +51,9 @@ class PortRequest(BaseModel):
     port: int
 
 class NATRequest(BaseModel):
-    family: str = "ip"
-    table: str = "nat"
-    chain: str = "prerouting"
+    family: str = "inet"
+    table: str = "niftywall"
+    chain: str = "nw-prerouting"
     protocol: str = "tcp"
     external_port: int
     internal_ip: str
@@ -168,15 +168,10 @@ async def get_ruleset(user: str = Depends(get_current_user)):
 
 @app.post("/api/ruleset/advanced")
 async def add_advanced_rule(data: dict = Body(...), user: str = Depends(get_current_user)):
-    family = data.get('family', 'ip')
-    chain = data.get('chain', 'input')
-    if family in ['ip', 'ip6'] and chain.islower():
-        chain = chain.upper()
-
     res = nft.add_advanced_rule(
-        family=family,
-        table=data.get('table', 'filter'),
-        chain=chain,
+        family=data.get('family', 'inet'),
+        table=data.get('table', 'niftywall'),
+        chain=data.get('chain', 'nw-input'),
         protocol=data.get('protocol', 'tcp'),
         ports=str(data.get('ports', '')),
         source=data.get('source', 'any'),
@@ -187,7 +182,7 @@ async def add_advanced_rule(data: dict = Body(...), user: str = Depends(get_curr
         burst=int(data.get('burst', 0))
     )
     if res["success"]:
-        log_action(user, "ADD_RULE", f"New rule in {chain}")
+        log_action(user, "ADD_RULE", f"New rule in {data.get('chain', 'nw-input')}")
         return {"status": "success", "message": res["message"]}
     raise HTTPException(status_code=500, detail=res["message"])
 

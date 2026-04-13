@@ -7,14 +7,14 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v1.5.2 "Smart Insights"
+# 🛡️ NiftyWall v2.0.0 "Autonomy"
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-[![Version](https://img.shields.io/badge/version-1.5.2-emerald.svg)](https://github.com/weby-homelab/niftywall)
+[![Version](https://img.shields.io/badge/version-2.0.0-emerald.svg)](https://github.com/weby-homelab/niftywall)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
 
-**NiftyWall** is a professional web dashboard for managing `nftables`, built for those who value speed, aesthetics, and total control. Unlike UFW or Firewalld, NiftyWall doesn't create its own "rule world"; instead, it works directly with the Linux kernel, visualizing the real state of your firewall.
+**NiftyWall** is a professional web dashboard for managing firewalls, built for those who value speed, aesthetics, and total control. In the v2.0.0 update, NiftyWall gained **full autonomy**: it no longer relies on system tables and doesn't conflict with Docker. It creates its own isolated table with the highest priority (`inet niftywall`), ensuring 100% reliability and security.
 
 ---
 
@@ -88,9 +88,9 @@ cp .env.example .env
 ---
 
 ## 📜 Update History
+- **v2.0.0**: "Autonomy" release. Full rule isolation, seamless Docker compatibility without conflicts.
+- **v1.5.2**: Stability hotfixes for Smart Insights.
 - **v1.5.0**: "Smart Insights" release. Charts, mobile UI, Unban, Whois.
-- **v1.4.1**: Smart Clone & Edit, auto-snapshots, advanced NAT.
-- **v1.3.0**: Fail2Ban integration (read-only), IP geolocation.
 
 ## 📋 System Requirements
 - **OS:** Ubuntu 24.04 (LTS) or any modern Linux with Kernel 6.8+.

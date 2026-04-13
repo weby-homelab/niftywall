@@ -88,14 +88,21 @@ cp .env.example .env
 ---
 
 ## 📜 Історія оновлень
+- **v2.0.0**: Реліз "Autonomy". Повна ізоляція правил, сумісність з Docker без конфліктів.
+- **v1.5.2**: Stability hotfixes для Smart Insights.
 - **v1.5.0**: Реліз "Smart Insights". Графіки, мобільний інтерфейс, Unban, Whois.
-- **v1.4.1**: Smart Clone & Edit, автоматичні снапшоти, вдосконалений NAT.
-- **v1.3.0**: Інтеграція з Fail2Ban (read-only), геолокація IP.
 
 ## 📋 Системні вимоги
 - **ОС:** Ubuntu 24.04 (LTS) або сучасний Linux з ядром 6.8+.
 - **Ядро:** nftables 1.0.9 або новіше.
 - **Доступ:** Права `root` для керування правилами.
+
+---
+<p align="center">
+  Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
+  <strong>✦ 2026 Weby Homelab ✦</strong>
+</p>
+вання правилами.
 
 ---
 <p align="center">
