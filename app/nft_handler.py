@@ -5,7 +5,7 @@ import glob
 from datetime import datetime
 from typing import Dict, Any
 
-SNAPSHOT_DIR = "/root/geminicli/weby-homelab/niftywall/snapshots"
+SNAPSHOT_DIR = os.getenv("SNAPSHOT_DIR", "snapshots")
 
 class NftablesHandler:
     def __init__(self):

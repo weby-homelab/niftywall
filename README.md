@@ -7,10 +7,10 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v1.5.1 "Smart Insights"
+# 🛡️ NiftyWall v1.5.2 "Smart Insights"
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-[![Version](https://img.shields.io/badge/version-1.5.1-emerald.svg)](https://github.com/weby-homelab/niftywall)
+[![Version](https://img.shields.io/badge/version-1.5.2-emerald.svg)](https://github.com/weby-homelab/niftywall)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
 
@@ -65,7 +65,13 @@ graph TD
 ### Через Docker (Рекомендовано)
 ```bash
 docker pull webyhomelab/niftywall:latest
-docker run -d --name niftywall --privileged --network host webyhomelab/niftywall:latest
+docker run -d --name niftywall --privileged --network host \
+  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
+  -v /var/run/fail2ban:/var/run/fail2ban \
+  -v /opt/niftywall/snapshots:/app/snapshots \
+  -v /opt/niftywall/data:/app/data \
+  -e SECRET_KEY="your_secure_random_string_here" \
+  webyhomelab/niftywall:latest
 ```
 *Примітка: `--privileged` та `--network host` необхідні для прямої взаємодії з nftables.*
 
