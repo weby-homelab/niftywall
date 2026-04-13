@@ -168,10 +168,15 @@ async def get_ruleset(user: str = Depends(get_current_user)):
 
 @app.post("/api/ruleset/advanced")
 async def add_advanced_rule(data: dict = Body(...), user: str = Depends(get_current_user)):
+    family = data.get('family', 'ip')
+    chain = data.get('chain', 'input')
+    if family in ['ip', 'ip6'] and chain.islower():
+        chain = chain.upper()
+
     res = nft.add_advanced_rule(
-        family=data.get('family', 'ip'),
+        family=family,
         table=data.get('table', 'filter'),
-        chain=data.get('chain', 'input'),
+        chain=chain,
         protocol=data.get('protocol', 'tcp'),
         ports=str(data.get('ports', '')),
         source=data.get('source', 'any'),
@@ -182,7 +187,7 @@ async def add_advanced_rule(data: dict = Body(...), user: str = Depends(get_curr
         burst=int(data.get('burst', 0))
     )
     if res["success"]:
-        log_action(user, "ADD_RULE", f"New rule in {data.get('chain')}")
+        log_action(user, "ADD_RULE", f"New rule in {chain}")
         return {"status": "success", "message": res["message"]}
     raise HTTPException(status_code=500, detail=res["message"])
 
