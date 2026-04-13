@@ -8,7 +8,7 @@ Group=root
 WorkingDirectory=/opt/niftywall
 Environment="PATH=/opt/niftywall/venv/bin"
 EnvironmentFile=/opt/niftywall/.env
-ExecStart=/opt/niftywall/venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8080 --timeout 120
+ExecStart=/opt/niftywall/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080 --timeout-keep-alive 120
 Restart=always
 RestartSec=3
 
