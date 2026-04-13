@@ -148,9 +148,10 @@ class NftablesHandler:
         match_expr = f"{protocol} dport {external_port}"
         target = f"[{internal_ip}]:{internal_port}" if ":" in internal_ip and internal_port else f"{internal_ip}:{internal_port}" if internal_port else internal_ip
         
-        dnat_cmd = f"add rule inet niftywall nw-prerouting {match_expr} counter dnat to {target}"
-        fwd_port = internal_port if internal_port else external_port
         ip_ver = "ip6" if ":" in internal_ip else "ip"
+        dnat_cmd = f"add rule inet niftywall nw-prerouting {match_expr} counter dnat {ip_ver} to {target}"
+        fwd_port = internal_port if internal_port else external_port
+        
         fwd_cmd = f"add rule inet niftywall nw-forward {ip_ver} daddr {internal_ip} {protocol} dport {fwd_port} counter accept"
 
         try:
