@@ -93,10 +93,31 @@ cp .env.example .env
 - **v1.5.2**: Stability hotfixes for Smart Insights.
 - **v1.5.0**: "Smart Insights" release. Charts, mobile UI, Unban, Whois.
 
-## 📋 System Requirements
-- **OS:** Ubuntu 24.04 (LTS) or any modern Linux with Kernel 6.8+.
-- **Engine:** nftables 1.0.9 or newer.
-- **Access:** `root` privileges for rule management.
+## 📋 Detailed System Requirements and Environments
+
+NiftyWall v2.0+ is built on the principle of **absolute autonomy**. By utilizing an isolated `inet niftywall` table with the highest chain priority (-100/-150), NiftyWall functions correctly across a wide range of environments.
+
+### 🟢 1. Base Requirements (For all systems)
+- **OS:** Ubuntu 24.04 (LTS), Debian 12, or any modern Linux with Kernel **6.8+**.
+- **Engine:** `nftables` version **1.0.9** or newer.
+- **Access:** `root` privileges (or `sudo`) for direct kernel rule management.
+
+### 🟢 2. Ideal Environment (Native Bare Metal / Cloud VPS)
+*Servers running without any additional firewall wrappers.*
+- **How it works:** NiftyWall is the sole master of your network traffic.
+- **Characteristics:** Highest rule processing speed, 100% predictability, perfect for high-load gateways, routers, or VPN servers.
+
+### 🟡 3. Mixed Environment (Servers with Docker / LXC)
+*Servers actively utilizing containerization.*
+- **How it works:** Docker traditionally uses the `iptables-nft` subsystem, generating its own rules in system tables (e.g., `ip filter`, `ip nat`).
+- **Compatibility:** **Full (As of v2.0).** NiftyWall no longer conflicts with Docker.
+- **Characteristics:** All your NiftyWall rules will be applied to the traffic **before** it ever reaches Docker's rules. This allows you to safely block (Drop) malicious traffic before it hits the exposed ports of your containers.
+
+### 🔴 4. Hostile Environment (UFW or Firewalld active)
+*Servers where another high-level manager is already running (e.g., `ufw enable` or `systemctl start firewalld`).*
+- **Compatibility:** **Partial / Not Recommended.**
+- **Why:** UFW creates dozens of opaque micro-chains. While NiftyWall rules will trigger first (due to their high priority), any UFW restart might entirely overwrite the kernel configuration, leading to unpredictable behavior.
+- **Solution:** NiftyWall is designed as a **replacement** for UFW/Firewalld. It is highly recommended to disable them (`ufw disable` or `systemctl disable firewalld`) before adopting NiftyWall.
 
 ---
 <p align="center">
