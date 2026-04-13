@@ -230,23 +230,12 @@
                 <div class="space-y-4">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Table Family</label>
-                            <select id="rule-family" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
-                                <option value="inet">inet (IPv4/IPv6)</option>
-                                <option value="ip">ip (IPv4 only)</option>
-                                <option value="ip6">ip6 (IPv6 only)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">Chain</label>
+                            <label class="block text-xs text-gray-400 mb-1">Direction</label>
                             <select id="rule-chain" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
-                                <option value="input">input (Incoming)</option>
-                                <option value="forward">forward (Routing)</option>
+                                <option value="nw-input">Inbound (nw-input)</option>
+                                <option value="nw-forward">Forwarding (nw-forward)</option>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Protocol</label>
                             <select id="rule-protocol" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
@@ -254,6 +243,7 @@
                                 <option value="udp">UDP</option>
                             </select>
                         </div>
+                    </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Port(s) <span class="text-gray-500">- e.g. 80,443</span></label>
                             <input type="text" id="rule-ports" placeholder="80" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white">
@@ -1202,17 +1192,10 @@
         }
 
         async function submitAdvancedRule() {
-            let familyVal = document.getElementById('rule-family').value;
             let chainVal = document.getElementById('rule-chain').value;
-            
-            // iptables-nft uses uppercase chains for ip and ip6 families
-            if (familyVal === 'ip' || familyVal === 'ip6') {
-                chainVal = chainVal.toUpperCase();
-            }
-
             const payload = {
-                family: familyVal,
-                table: "filter", // Hardcoded for now, can be expanded
+                family: "inet",
+                table: "niftywall",
                 chain: chainVal,
                 protocol: document.getElementById('rule-protocol').value,
                 ports: document.getElementById('rule-ports').value,
@@ -1254,9 +1237,9 @@
 
         async function submitNatRule() {
             const payload = {
-                family: "ip", // Default to IPv4 for standard NAT
-                table: "nat",
-                chain: "PREROUTING", // Capitalized because iptables-nft creates it this way
+                family: "inet",
+                table: "niftywall",
+                chain: "nw-prerouting",
                 protocol: document.getElementById('nat-protocol').value,
                 external_port: parseInt(document.getElementById('nat-ext-port').value),
                 internal_ip: document.getElementById('nat-int-ip').value,
