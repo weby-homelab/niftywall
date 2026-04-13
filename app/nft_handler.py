@@ -36,8 +36,10 @@ class NftablesHandler:
             if len(snapshots) > 20:
                 for old_snap in snapshots[:-20]:
                     os.remove(old_snap)
+            return filename
         except Exception as e:
             print(f"Snapshot creation failed: {e}")
+            return None
 
     def list_snapshots(self) -> list:
         """Returns a list of available snapshots."""
