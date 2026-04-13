@@ -1,6 +1,5 @@
 import os
 import time
-import json
 import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
@@ -8,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, Form, status, D
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
+from app.db import get_db
 
 load_dotenv()
 
@@ -15,44 +15,50 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is not set")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 600 # 10 hours for better UX
+ACCESS_TOKEN_EXPIRE_MINUTES = 600
 
-# Users DB path
-DATA_DIR = "data"
-USERS_FILE = os.path.join(DATA_DIR, "users.json")
-
+DATA_DIR = os.getenv("DATA_DIR", "data")
 templates = Jinja2Templates(directory="templates")
 auth_router = APIRouter()
 
-# --- Helpers ---
 def load_users():
-    if not os.path.exists(USERS_FILE):
-        return {}
-    try:
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM users')
+    rows = c.fetchall()
+    conn.close()
+    return {row['username']: dict(row) for row in rows}
 
 def save_users(users):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f, indent=4)
+    conn = get_db()
+    c = conn.cursor()
+    for username, data in users.items():
+        c.execute('''INSERT OR REPLACE INTO users (username, password, created_at)
+                     VALUES (?, ?, ?)''', (username, data['password'], data['created_at']))
+    conn.commit()
+    conn.close()
 
 def has_users():
     return len(load_users()) > 0
 
-# --- Brute Force Protection ---
-failed_attempts = {}
 MAX_ATTEMPTS = 5
 LOCKOUT_TIME = 300
 
 def check_brute_force(ip: str):
     now = time.time()
-    if ip in failed_attempts:
-        attempts, last_attempt = failed_attempts[ip]
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT attempts, last_attempt FROM brute_force WHERE ip = ?', (ip,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        attempts, last_attempt = row['attempts'], row['last_attempt']
         if now - last_attempt > LOCKOUT_TIME:
-            failed_attempts[ip] = (0, now)
+            conn = get_db()
+            c = conn.cursor()
+            c.execute('DELETE FROM brute_force WHERE ip = ?', (ip,))
+            conn.commit()
+            conn.close()
             return False
         if attempts >= MAX_ATTEMPTS:
             return True
@@ -60,13 +66,22 @@ def check_brute_force(ip: str):
 
 def record_failed_attempt(ip: str):
     now = time.time()
-    attempts, _ = failed_attempts.get(ip, (0, 0))
-    failed_attempts[ip] = (attempts + 1, now)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT attempts FROM brute_force WHERE ip = ?', (ip,))
+    row = c.fetchone()
+    attempts = row['attempts'] + 1 if row else 1
+    c.execute('INSERT OR REPLACE INTO brute_force (ip, attempts, last_attempt) VALUES (?, ?, ?)', (ip, attempts, now))
+    conn.commit()
+    conn.close()
 
 def clear_failed_attempts(ip: str):
-    failed_attempts.pop(ip, None)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM brute_force WHERE ip = ?', (ip,))
+    conn.commit()
+    conn.close()
 
-# --- JWT ---
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -92,8 +107,6 @@ def get_current_user(request: Request):
         return username
     except Exception:
         raise HTTPException(status_code=401, detail="Authentication failed")
-
-# --- Routes ---
 
 @auth_router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):

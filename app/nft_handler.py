@@ -29,13 +29,20 @@ class NftablesHandler:
             print(f"Failed to initialize NiftyWall table: {e}")
 
     def _create_snapshot(self, action_name: str):
+        """Creates a backup snapshot of ONLY the NiftyWall table."""
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             safe_action = "".join([c if c.isalnum() else "_" for c in action_name])
             filename = f"{timestamp}_{safe_action}.nft"
             filepath = os.path.join(SNAPSHOT_DIR, filename)
             
-            result = subprocess.run([self.nft_cmd, "list", "ruleset"], capture_output=True, text=True, check=True)
+            # Fix Flaw 1: Isolation
+            result = subprocess.run(
+                [self.nft_cmd, "list", "table", "inet", "niftywall"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
             with open(filepath, 'w') as f:
                 f.write(result.stdout)
                 
@@ -68,34 +75,37 @@ class NftablesHandler:
         return snapshots
 
     def restore_snapshot(self, filename: str) -> bool:
+        """Restores ONLY the NiftyWall table from a snapshot."""
         filepath = os.path.join(SNAPSHOT_DIR, filename)
         if not os.path.exists(filepath): return False
         try:
-            subprocess.run([self.nft_cmd, "flush", "ruleset"], check=True)
+            # Fix Flaw 1: Isolation
+            subprocess.run([self.nft_cmd, "flush", "table", "inet", "niftywall"], check=True)
             subprocess.run([self.nft_cmd, "-f", filepath], check=True)
             return True
         except: return False
 
     def get_ruleset(self) -> Dict[str, Any]:
         try:
-            result = subprocess.run([self.nft_cmd, "-j", "list", "ruleset"], capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                [self.nft_cmd, "-j", "list", "ruleset"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
             return json.loads(result.stdout)
         except subprocess.CalledProcessError as e:
             return {"error": f"Failed to execute nft: {e.stderr or e.stdout}"}
         except json.JSONDecodeError: return {"error": "JSON parse error"}
         except FileNotFoundError: return {"error": "nft missing"}
 
-    def backup_ruleset(self, backup_path: str = "/etc/nftables.conf.backup") -> bool:
-        try:
-            result = subprocess.run([self.nft_cmd, "list", "ruleset"], capture_output=True, text=True, check=True)
-            with open(backup_path, 'w') as f: f.write(result.stdout)
-            return True
-        except: return False
-
     def delete_rule(self, family: str, table: str, chain: str, handle: int) -> bool:
         self._create_snapshot(f"delete_rule_{handle}")
         try:
-            subprocess.run([self.nft_cmd, "delete", "rule", family, table, chain, "handle", str(handle)], check=True)
+            subprocess.run(
+                [self.nft_cmd, "delete", "rule", family, table, chain, "handle", str(handle)],
+                check=True
+            )
             return True
         except: return False
 
@@ -111,8 +121,10 @@ class NftablesHandler:
         
         if rate_enabled:
             set_name = f"limit_{protocol}_{ports.replace(',', '_')}"
-            commands.append(f"add set inet niftywall {set_name} {{ type ipv4_addr; size 65536; flags dynamic, timeout; timeout 1h; }}")
-            commands.append(f"add rule inet niftywall {chain} {match_expr} update @{set_name} {{ ip saddr limit rate {rate}/{unit} burst {burst} packets }} counter {action}")
+            ip_type = "ipv6_addr" if family == "ip6" else "ipv4_addr"
+            commands.append(f"add set inet niftywall {set_name} {{ type {ip_type}; size 65536; flags dynamic, timeout; timeout 1h; }}")
+            saddr_var = "ip6 saddr" if family == "ip6" else "ip saddr"
+            commands.append(f"add rule inet niftywall {chain} {match_expr} update @{set_name} {{ {saddr_var} limit rate {rate}/{unit} burst {burst} packets }} counter {action}")
             commands.append(f"add rule inet niftywall {chain} {match_expr} counter drop")
         else:
             commands.append(f"add rule inet niftywall {chain} {match_expr} counter {action}")
@@ -144,35 +156,49 @@ class NftablesHandler:
         except: return False
 
     def add_dnat_rule(self, family: str, table: str, chain: str, protocol: str, external_port: int, internal_ip: str, internal_port: int) -> dict:
+        """Adds DNAT rule with automatic Forwarding and Masquerading (Fix Flaw 7)."""
         self._create_snapshot("add_nat_rule")
         match_expr = f"{protocol} dport {external_port}"
         target = f"[{internal_ip}]:{internal_port}" if ":" in internal_ip and internal_port else f"{internal_ip}:{internal_port}" if internal_port else internal_ip
-        
         ip_ver = "ip6" if ":" in internal_ip else "ip"
-        dnat_cmd = f"add rule inet niftywall nw-prerouting {match_expr} counter dnat {ip_ver} to {target}"
-        fwd_port = internal_port if internal_port else external_port
         
+        # 1. DNAT
+        dnat_cmd = f"add rule inet niftywall nw-prerouting {match_expr} counter dnat {ip_ver} to {target}"
+        
+        # 2. Forwarding
+        fwd_port = internal_port if internal_port else external_port
         fwd_cmd = f"add rule inet niftywall nw-forward {ip_ver} daddr {internal_ip} {protocol} dport {fwd_port} counter accept"
+        
+        # 3. Masquerading (SNAT) - Fix Flaw 7
+        snat_cmd = f"add rule inet niftywall nw-postrouting {ip_ver} daddr {internal_ip} {protocol} dport {fwd_port} counter masquerade"
 
         try:
-            process = subprocess.run([self.nft_cmd, "-f", "-"], input=f"{dnat_cmd}\n{fwd_cmd}", text=True, capture_output=True)
+            process = subprocess.run([self.nft_cmd, "-f", "-"], input=f"{dnat_cmd}\n{fwd_cmd}\n{snat_cmd}", text=True, capture_output=True)
             if process.returncode != 0: return {"success": False, "message": process.stderr}
-            return {"success": True, "message": "NAT Rule applied successfully"}
+            return {"success": True, "message": "DNAT + Forward + SNAT rules applied successfully"}
         except Exception as e: return {"success": False, "message": str(e)}
 
     def apply_panic_mode(self) -> bool:
+        """Panic mode with configurable ports/interfaces (Fix Flaw 3)."""
         self._create_snapshot("panic_mode")
-        rules = """
-        flush chain inet niftywall nw-input
-        add rule inet niftywall nw-input iif "lo" accept
-        add rule inet niftywall nw-input ct state established,related accept
-        add rule inet niftywall nw-input icmp type echo-request accept
-        add rule inet niftywall nw-input icmpv6 type echo-request accept
-        add rule inet niftywall nw-input tcp dport { 22, 8080, 54322 } accept
-        add rule inet niftywall nw-input iifname "tailscale0" accept
-        add rule inet niftywall nw-input counter drop
-        """
+        
+        # Fix Flaw 3: Configurable Panic Mode
+        allowed_ports = os.getenv("PANIC_ALLOWED_PORTS", "22,8080,54322")
+        allowed_ifs = os.getenv("PANIC_ALLOWED_INTERFACES", "lo,tailscale0")
+        
+        commands = ["flush chain inet niftywall nw-input"]
+        for iface in allowed_ifs.split(','):
+            commands.append(f"add rule inet niftywall nw-input iifname \"{iface.strip()}\" accept")
+        
+        commands.append("add rule inet niftywall nw-input ct state established,related accept")
+        commands.append("add rule inet niftywall nw-input icmp type echo-request accept")
+        commands.append("add rule inet niftywall nw-input icmpv6 type echo-request accept")
+        commands.append(f"add rule inet niftywall nw-input tcp dport {{ {allowed_ports} }} accept")
+        commands.append("add rule inet niftywall nw-input counter drop")
+        
         try:
-            subprocess.run([self.nft_cmd, "-f", "-"], input=rules, text=True, check=True)
+            subprocess.run([self.nft_cmd, "-f", "-"], input="\n".join(commands), text=True, check=True)
             return True
-        except: return False
+        except Exception as e:
+            print(f"Panic mode failed: {e}")
+            return False
