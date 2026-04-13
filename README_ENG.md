@@ -108,8 +108,8 @@ NiftyWall v2.0+ is built on the principle of **absolute autonomy**. By utilizing
 ### 🔴 4. Hostile Environment (UFW or Firewalld active)
 *Servers where another high-level manager is already running (e.g., `ufw enable` or `systemctl start firewalld`).*
 - **Compatibility:** **Partial / Not Recommended.**
-- **Why:** UFW creates dozens of opaque micro-chains. While NiftyWall rules will trigger first (due to their high priority), any UFW restart might entirely overwrite the kernel configuration, leading to unpredictable behavior.
-- **Solution:** NiftyWall is designed as a **replacement** for UFW/Firewalld. It is highly recommended to disable them (`ufw disable` or `systemctl disable firewalld`) before adopting NiftyWall.
+- **Why:** UFW and Firewalld create dozens of opaque micro-chains. While NiftyWall rules trigger first, any restart of these services may cause conflicts.
+- **Solution:** NiftyWall is designed as a modern replacement. If you specifically need a GUI for these legacy systems, use our dedicated projects: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui). Otherwise, it is highly recommended to disable them before adopting NiftyWall.
 
 ---
 <p align="center">
