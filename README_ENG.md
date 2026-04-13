@@ -7,14 +7,18 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v3.0.0 "Hardened"
-*Making Linux Firewalls Transparent, Smart, and Beautiful.*
+<br>
 
-[![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](https://github.com/weby-homelab/niftywall)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/weby-homelab/niftywall?style=for-the-badge&color=emerald" alt="Latest Release">
+  <img src="https://img.shields.io/badge/Branch-main_(Docker)-00b894?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
+</p>
+
+# 🛡️ NiftyWall v3.0.0 "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
 
 **NiftyWall** is a professional web dashboard for firewall management. In the v3.0.0 update, the project underwent a full audit and refactoring to achieve Enterprise-grade stability and security.
+
+This branch (`main`) contains the **Docker Edition** of the project, optimized for quick and isolated deployments via Docker Compose.
 
 ---
 
@@ -53,29 +57,31 @@ graph TD
 
 ---
 
-## 🛠️ Bare Metal Installation (Classic Branch)
+## 🛠️ Quick Start (Docker Edition)
 
-This version (`classic`) is optimized to run directly on the host (without Docker) using Systemd and Gunicorn.
+The recommended way for a fast and isolated deployment.
 
 ```bash
-# 1. Clone repository and switch to classic branch
-git clone -b classic https://github.com/weby-homelab/niftywall.git /opt/niftywall
-cd /opt/niftywall
+# 1. Pull the latest image
+docker pull webyhomelab/niftywall:latest
 
-# 2. Setup environment
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Setup configuration
-cp .env.example .env
-# Edit .env and add a secure SECRET_KEY
-# SECRET_KEY=$(openssl rand -hex 32)
-
-# 4. Install and start service
-cp niftywall.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now niftywall
+# 2. Run the system
+docker run -d --name niftywall --privileged --network host \
+  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
+  -v /var/run/fail2ban:/var/run/fail2ban \
+  -v /opt/niftywall/snapshots:/app/snapshots \
+  -v /opt/niftywall/data:/app/data \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  webyhomelab/niftywall:latest
 ```
+
+*Note: `--privileged` and `--network host` are required for direct interaction with nftables.*
+
+---
+
+## 📥 Other Installation Options
+
+For direct installation on the host system (Bare Metal), please use the [classic](https://github.com/weby-homelab/niftywall/tree/classic) branch.
 
 ---
 
@@ -85,31 +91,26 @@ systemctl enable --now niftywall
 - **v2.0.0**: "Autonomy" release. Full rule isolation, seamless Docker compatibility without conflicts.
 - **v1.5.0**: "Smart Insights" release. Charts, mobile UI, Unban, Whois.
 
+---
+
 ## 📋 Detailed System Requirements and Environments
 
 NiftyWall v2.0+ is built on the principle of **absolute autonomy**. By utilizing an isolated `inet niftywall` table with the highest chain priority (-100/-150), NiftyWall functions correctly across a wide range of environments.
 
-### 🟢 1. Base Requirements (For all systems)
+### 🟢 1. Base Requirements
 - **OS:** Ubuntu 24.04 (LTS), Debian 12, or any modern Linux with Kernel **6.8+**.
 - **Engine:** `nftables` version **1.0.9** or newer.
 - **Access:** `root` privileges (or `sudo`) for direct kernel rule management.
 
-### 🟢 2. Ideal Environment (Native Bare Metal / Cloud VPS)
-*Servers running without any additional firewall wrappers.*
-- **How it works:** NiftyWall is the sole master of your network traffic.
-- **Characteristics:** Highest rule processing speed, 100% predictability, perfect for high-load gateways, routers, or VPN servers.
-
-### 🟡 3. Mixed Environment (Servers with Docker / LXC)
+### 🟡 2. Mixed Environment (Servers with Docker / LXC)
 *Servers actively utilizing containerization.*
-- **How it works:** Docker traditionally uses the `iptables-nft` subsystem, generating its own rules in system tables (e.g., `ip filter`, `ip nat`).
 - **Compatibility:** **Full (As of v2.0).** NiftyWall no longer conflicts with Docker.
-- **Characteristics:** All your NiftyWall rules will be applied to the traffic **before** it ever reaches Docker's rules. This allows you to safely block (Drop) malicious traffic before it hits the exposed ports of your containers.
+- **Characteristics:** All your NiftyWall rules will be applied to the traffic **before** it ever reaches Docker's rules (priority -100). This allows you to safely block traffic before it hits your containers.
 
-### 🔴 4. Hostile Environment (UFW or Firewalld active)
-*Servers where another high-level manager is already running (e.g., `ufw enable` or `systemctl start firewalld`).*
+### 🔴 3. Hostile Environment (UFW or Firewalld active)
+*Servers where another high-level manager is already running.*
 - **Compatibility:** **Partial / Not Recommended.**
-- **Why:** UFW and Firewalld create dozens of opaque micro-chains. While NiftyWall rules trigger first, any restart of these services may cause conflicts.
-- **Solution:** NiftyWall is designed as a modern replacement. If you specifically need a GUI for these legacy systems, use our dedicated projects: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui). Otherwise, it is highly recommended to disable them before adopting NiftyWall.
+- **Solution:** NiftyWall is designed as a modern replacement. If you specifically need a GUI for these legacy systems, use: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
 
 ---
 <p align="center">

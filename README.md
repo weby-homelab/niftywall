@@ -7,14 +7,18 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v3.0.0 "Hardened"
-*Making Linux Firewalls Transparent, Smart, and Beautiful.*
+<br>
 
-[![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](https://github.com/weby-homelab/niftywall)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/weby-homelab/niftywall?style=for-the-badge&color=emerald" alt="Latest Release">
+  <img src="https://img.shields.io/badge/Branch-main_(Docker)-00b894?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
+</p>
+
+# 🛡️ NiftyWall v3.0.0 "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
 
 **NiftyWall** — це професійний веб-дашборд для керування фаєрволом. У версії v3.0.0 проект пройшов повний аудит та рефакторинг для досягнення Enterprise-стабільності та безпеки.
+
+Ця гілка (`main`) містить **Docker Edition** проекту, оптимізовану для швидкого та ізольованого розгортання через Docker Compose.
 
 ---
 
@@ -53,29 +57,31 @@ graph TD
 
 ---
 
-## 🛠️ Встановлення на Bare Metal (Гілка Classic)
+## 🛠️ Швидкий старт (Docker Edition)
 
-Ця версія (`classic`) оптимізована для роботи безпосередньо на хості (без Docker) за допомогою Systemd та Gunicorn.
+Рекомендований спосіб для швидкого запуску в ізольованому середовищі.
 
 ```bash
-# 1. Клонування репозиторію та перехід на гілку classic
-git clone -b classic https://github.com/weby-homelab/niftywall.git /opt/niftywall
-cd /opt/niftywall
+# 1. Завантажте docker-compose.yml (опціонально) або просто запустіть образ
+docker pull webyhomelab/niftywall:latest
 
-# 2. Налаштування середовища
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Налаштування конфігурації
-cp .env.example .env
-# Відредагуйте .env і додайте надійний SECRET_KEY
-# SECRET_KEY=$(openssl rand -hex 32)
-
-# 4. Встановлення та запуск сервісу
-cp niftywall.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now niftywall
+# 2. Запустіть систему
+docker run -d --name niftywall --privileged --network host \
+  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
+  -v /var/run/fail2ban:/var/run/fail2ban \
+  -v /opt/niftywall/snapshots:/app/snapshots \
+  -v /opt/niftywall/data:/app/data \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  webyhomelab/niftywall:latest
 ```
+
+*Примітка: `--privileged` та `--network host` необхідні для прямої взаємодії з nftables.*
+
+---
+
+## 📥 Інші варіанти встановлення
+
+Для встановлення безпосередньо на хост-систему (Bare Metal) використовуйте гілку [classic](https://github.com/weby-homelab/niftywall/tree/classic).
 
 ---
 
@@ -85,31 +91,26 @@ systemctl enable --now niftywall
 - **v2.0.0**: Реліз "Autonomy". Повна ізоляція правил, сумісність з Docker без конфліктів.
 - **v1.5.0**: Реліз "Smart Insights". Графіки, мобільний інтерфейс, Unban, Whois.
 
+---
+
 ## 📋 Детальні Системні Вимоги та Сумісність (Environments)
 
 Проект NiftyWall v2.0+ побудовано за принципом **абсолютної автономії**. Завдяки використанню ізольованої таблиці `inet niftywall` з найвищим пріоритетом ланцюгів (-100/-150), NiftyWall коректно працює у широкому спектрі середовищ.
 
-### 🟢 1. Базові вимоги (Для всіх систем)
+### 🟢 1. Базові вимоги
 - **ОС:** Ubuntu 24.04 (LTS), Debian 12 або сучасний Linux з ядром **6.8+**.
 - **Ядро / Движок:** `nftables` версії **1.0.9** або новіше.
 - **Доступ:** Права `root` (або `sudo`) для безпосереднього керування правилами ядра.
 
-### 🟢 2. Ідеальне середовище (Native Bare Metal / Cloud VPS)
-*Сервери без жодних додаткових прошарків фаєрволів.*
-- **Як працює:** NiftyWall є єдиним хазяїном мережевого трафіку.
-- **Особливості:** Найвища швидкість обробки правил, 100% передбачуваність, ідеально для високозавантажених шлюзів, маршрутизаторів або VPN-серверів.
-
-### 🟡 3. Змішане середовище (Сервери з Docker / LXC)
+### 🟡 2. Змішане середовище (Сервери з Docker / LXC)
 *Сервери, де активно використовується контейнеризація.*
-- **Як працює:** Docker використовує підсистему `iptables-nft`, яка створює свої правила у системних таблицях (наприклад, `ip filter`, `ip nat`).
 - **Сумісність:** **Повна (Починаючи з v2.0).** NiftyWall більше не конфліктує з Docker.
-- **Особливості:** Усі ваші правила з NiftyWall будуть застосовані до трафіку **раніше**, ніж він дійде до правил Docker. Завдяки цьому ви можете безпечно блокувати (Drop) небажаний трафік ще до того, як він потрапить у відкриті порти ваших контейнерів.
+- **Особливості:** Усі ваші правила з NiftyWall будуть застосовані до трафіку **раніше**, ніж він дійде до правил Docker (пріоритет -100). Це дозволяє безпечно блокувати трафік до його потрапляння в контейнери.
 
-### 🔴 4. Вороже середовище (UFW або Firewalld)
-*Сервери, де вже активний інший високорівневий менеджер (наприклад, `ufw enable` чи `systemctl start firewalld`).*
+### 🔴 3. Вороже середовище (UFW або Firewalld)
+*Сервери, де вже активний інший менеджер.*
 - **Сумісність:** **Часткова / Не рекомендовано.**
-- **Чому:** UFW та Firewalld створюють десятки незрозумілих мікро-ланцюгів. Хоча правила NiftyWall спрацюють першими, будь-який рестарт цих сервісів може викликати конфлікти. 
-- **Рішення:** NiftyWall створено як сучасну заміну для них. Якщо вам потрібен графічний інтерфейс саме для цих систем, використовуйте наші спеціалізовані проекти: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) або [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui). Інакше — рекомендується вимкнути їх перед використанням NiftyWall.
+- **Рішення:** NiftyWall створено як сучасну заміну для них. Якщо вам потрібен GUI саме для цих систем, використовуйте: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) або [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
 
 ---
 <p align="center">
