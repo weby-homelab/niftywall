@@ -27,7 +27,7 @@ nft = NftablesHandler()
 f2b = Fail2BanParser()
 
 # Paths
-AUDIT_LOG_FILE = "audit.log"
+AUDIT_LOG_FILE = os.path.join(DATA_DIR, "audit.log")
 UPTIME_HISTORY_FILE = os.path.join(DATA_DIR, "uptime_history.json")
 
 # Common port to service mapping
@@ -246,13 +246,13 @@ async def add_set_element(req: SetElementRequest, user: str = Depends(get_curren
 
 @app.delete("/api/sets/element")
 async def remove_set_element(req: SetElementRequest, user: str = Depends(get_current_user)):
-    success = nft.remove_set_element(req.family, req.table, req.set_name, req.element)
+    success = nft.delete_set_element(req.family, req.table, req.set_name, req.element)
     if success:
         log_action(user, "SET_REMOVE", f"Removed {req.element} from {req.set_name}")
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Failed to remove element.")
 
-@app.get("/api/fail2ban/info")
+@app.post("/api/fail2ban/info")
 async def get_f2b_info(req: dict = Body(...), user: str = Depends(get_current_user)):
     """Fetch ban reasons from fail2ban log for given IPs."""
     info = f2b.get_ban_info_for_ips(req.get('ips', []))

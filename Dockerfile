@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     nftables \
     gcc \
     python3-dev \
+    fail2ban \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
