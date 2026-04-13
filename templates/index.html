@@ -1202,10 +1202,18 @@
         }
 
         async function submitAdvancedRule() {
+            let familyVal = document.getElementById('rule-family').value;
+            let chainVal = document.getElementById('rule-chain').value;
+            
+            // iptables-nft uses uppercase chains for ip and ip6 families
+            if (familyVal === 'ip' || familyVal === 'ip6') {
+                chainVal = chainVal.toUpperCase();
+            }
+
             const payload = {
-                family: document.getElementById('rule-family').value,
+                family: familyVal,
                 table: "filter", // Hardcoded for now, can be expanded
-                chain: document.getElementById('rule-chain').value,
+                chain: chainVal,
                 protocol: document.getElementById('rule-protocol').value,
                 ports: document.getElementById('rule-ports').value,
                 source: document.getElementById('rule-source').value,
