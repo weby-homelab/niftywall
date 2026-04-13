@@ -3,19 +3,19 @@ import json
 import uvicorn
 import psutil
 import requests
-import sqlite3
 import datetime as dt
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException, Depends, Form, status, Body
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
 from app.nft_handler import NftablesHandler
 from app.auth import auth_router, get_current_user, DATA_DIR
 from app.fail2ban_parser import Fail2BanParser
+from app.db import get_db
 
 app = FastAPI(title="NiftyWall")
 
@@ -25,10 +25,6 @@ app.include_router(auth_router)
 # Initialize handlers
 nft = NftablesHandler()
 f2b = Fail2BanParser()
-
-# Paths
-AUDIT_LOG_FILE = os.path.join(DATA_DIR, "audit.log")
-UPTIME_HISTORY_FILE = os.path.join(DATA_DIR, "uptime_history.json")
 
 # Common port to service mapping
 SERVICE_MAP = {
@@ -41,64 +37,72 @@ SERVICE_MAP = {
 templates = Jinja2Templates(directory="templates")
 
 class UnbanRequest(BaseModel):
-    ip: str
-    jail: Optional[str] = None
+    ip: str = Field(..., pattern=r'^[\w\.\:\-\/]+$')
+    jail: Optional[str] = Field(None, pattern=r'^[\w\-]+$')
 
 class PortRequest(BaseModel):
-    family: str = "inet"
-    table: str = "filter"
-    chain: str = "input"
-    port: int
+    family: str = Field("inet", pattern=r'^(ip|ip6|inet)$')
+    table: str = Field("filter", pattern=r'^[\w\-]+$')
+    chain: str = Field("input", pattern=r'^[\w\-]+$')
+    port: int = Field(..., ge=1, le=65535)
 
 class NATRequest(BaseModel):
-    family: str = "inet"
-    table: str = "niftywall"
-    chain: str = "nw-prerouting"
-    protocol: str = "tcp"
-    external_port: int
-    internal_ip: str
-    internal_port: Optional[int] = None
+    family: str = Field("inet", pattern=r'^(ip|ip6|inet)$')
+    table: str = Field("niftywall", pattern=r'^[\w\-]+$')
+    chain: str = Field("nw-prerouting", pattern=r'^[\w\-]+$')
+    protocol: str = Field("tcp", pattern=r'^(tcp|udp)$')
+    external_port: int = Field(..., ge=1, le=65535)
+    internal_ip: str = Field(..., pattern=r'^[\w\.\:\-\/]+$')
+    internal_port: Optional[int] = Field(None, ge=1, le=65535)
 
 class SetElementRequest(BaseModel):
-    family: str
-    table: str
-    set_name: str
-    element: str
+    family: str = Field(..., pattern=r'^(ip|ip6|inet)$')
+    table: str = Field(..., pattern=r'^[\w\-]+$')
+    set_name: str = Field(..., pattern=r'^[\w\-]+$')
+    element: str = Field(..., pattern=r'^[\w\.\:\-\/]+$')
+
+class AdvancedRuleRequest(BaseModel):
+    family: str = Field("inet", pattern=r'^(ip|ip6|inet)$')
+    table: str = Field("niftywall", pattern=r'^[\w\-]+$')
+    chain: str = Field("nw-input", pattern=r'^[\w\-]+$')
+    protocol: str = Field("tcp", pattern=r'^(tcp|udp)$')
+    ports: str = Field("", pattern=r'^[\d\,]*$')
+    source: str = Field("any", pattern=r'^[\w\.\:\-\/\@]+$')
+    action: str = Field("accept", pattern=r'^(accept|drop)$')
+    rate_enabled: bool = False
+    rate: int = Field(0, ge=0)
+    unit: str = Field("second", pattern=r'^(second|minute|hour|day)$')
+    burst: int = Field(0, ge=0)
 
 def log_action(user: str, action: str, details: str):
-    """Log administrative actions to a local file."""
+    """Log administrative actions to a local SQLite database."""
     timestamp = datetime.now().isoformat()
-    log_entry = f"{timestamp} | {user} | {action} | {details}\n"
     try:
-        with open(AUDIT_LOG_FILE, "a") as f:
-            f.write(log_entry)
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('INSERT INTO audit_log (timestamp, username, action, details) VALUES (?, ?, ?, ?)', 
+                  (timestamp, user, action, details))
+        conn.commit()
+        conn.close()
     except Exception as e:
         print(f"CRITICAL: Failed to write audit log: {e}")
 
 def get_uptime_history(current_uptime):
-    """Maintain a history of daily max uptime values."""
+    """Maintain a history of daily max uptime values in SQLite."""
     today = datetime.now().strftime("%Y-%m-%d")
-    history = {}
-    if os.path.exists(UPTIME_HISTORY_FILE):
-        try:
-            with open(UPTIME_HISTORY_FILE, "r") as f:
-                history = json.load(f)
-        except: pass
-    
-    # Store/Update max uptime for today
-    history[today] = current_uptime
-    
-    # Keep only last 30 days
-    sorted_dates = sorted(history.keys())
-    if len(sorted_dates) > 30:
-        for old_date in sorted_dates[:-30]:
-            history.pop(old_date)
-            
-    with open(UPTIME_HISTORY_FILE, "w") as f:
-        json.dump(history, f)
-    
-    # Return sorted values for the chart
-    return [history[d] for d in sorted(history.keys())]
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('INSERT OR REPLACE INTO uptime_history (date, uptime) VALUES (?, ?)', (today, current_uptime))
+        c.execute('DELETE FROM uptime_history WHERE date <= date("now", "-30 days")')
+        conn.commit()
+        c.execute('SELECT uptime FROM uptime_history ORDER BY date ASC')
+        rows = c.fetchall()
+        conn.close()
+        return [row['uptime'] for row in rows]
+    except Exception as e:
+        print(f"Failed uptime: {e}")
+        return [current_uptime]
 
 @app.middleware("http")
 async def check_auth_middleware(request: Request, call_next):
@@ -167,22 +171,22 @@ async def get_ruleset(user: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/ruleset/advanced")
-async def add_advanced_rule(data: dict = Body(...), user: str = Depends(get_current_user)):
+async def add_advanced_rule(req: AdvancedRuleRequest, user: str = Depends(get_current_user)):
     res = nft.add_advanced_rule(
-        family=data.get('family', 'inet'),
-        table=data.get('table', 'niftywall'),
-        chain=data.get('chain', 'nw-input'),
-        protocol=data.get('protocol', 'tcp'),
-        ports=str(data.get('ports', '')),
-        source=data.get('source', 'any'),
-        action=data.get('action', 'accept'),
-        rate_enabled=data.get('rate_enabled', False),
-        rate=int(data.get('rate', 0)),
-        unit=data.get('unit', 'second'),
-        burst=int(data.get('burst', 0))
+        family=req.family,
+        table=req.table,
+        chain=req.chain,
+        protocol=req.protocol,
+        ports=req.ports,
+        source=req.source,
+        action=req.action,
+        rate_enabled=req.rate_enabled,
+        rate=req.rate,
+        unit=req.unit,
+        burst=req.burst
     )
     if res["success"]:
-        log_action(user, "ADD_RULE", f"New rule in {data.get('chain', 'nw-input')}")
+        log_action(user, "ADD_RULE", f"New rule in {req.chain}")
         return {"status": "success", "message": res["message"]}
     raise HTTPException(status_code=500, detail=res["message"])
 
@@ -254,7 +258,7 @@ async def remove_set_element(req: SetElementRequest, user: str = Depends(get_cur
 
 @app.post("/api/fail2ban/info")
 async def get_f2b_info(req: dict = Body(...), user: str = Depends(get_current_user)):
-    """Fetch ban reasons from fail2ban log for given IPs."""
+    """Fetch ban reasons from fail2ban."""
     info = f2b.get_ban_info_for_ips(req.get('ips', []))
     return info
 
@@ -279,22 +283,13 @@ async def create_backup(user: str = Depends(get_current_user)):
 
 @app.get("/api/audit")
 async def get_audit_log(user: str = Depends(get_current_user)):
-    if not os.path.exists(AUDIT_LOG_FILE):
-        return []
     try:
-        with open(AUDIT_LOG_FILE, "r") as f:
-            lines = f.readlines()
-        logs = []
-        for line in reversed(lines[-100:]): # Last 100 entries
-            parts = line.strip().split(" | ")
-            if len(parts) == 4:
-                logs.append({
-                    "timestamp": parts[0],
-                    "user": parts[1],
-                    "action": parts[2],
-                    "details": parts[3]
-                })
-        return logs
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT timestamp, username as user, action, details FROM audit_log ORDER BY id DESC LIMIT 100')
+        rows = c.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
     except:
         return []
 

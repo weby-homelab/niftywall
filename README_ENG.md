@@ -7,14 +7,14 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v2.0.0 "Autonomy"
+# 🛡️ NiftyWall v3.0.0 "Hardened"
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-[![Version](https://img.shields.io/badge/version-2.0.1-emerald.svg)](https://github.com/weby-homelab/niftywall)
+[![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](https://github.com/weby-homelab/niftywall)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
 
-**NiftyWall** is a professional web dashboard for managing firewalls, built for those who value speed, aesthetics, and total control. In the v2.0.0 update, NiftyWall gained **full autonomy**: it no longer relies on system tables and doesn't conflict with Docker. It creates its own isolated table with the highest priority (`inet niftywall`), ensuring 100% reliability and security.
+**NiftyWall** is a professional web dashboard for firewall management. In the v3.0.0 update, the project underwent a full audit and refactoring to achieve Enterprise-grade stability and security.
 
 ---
 
@@ -29,6 +29,7 @@ graph TD
         API -->|Subprocess / JSON| NFT[nftables Engine]
         API -->|Log Analysis| F2B[Fail2Ban Parser]
         API -->|Metrics| SYS[psutil System Monitor]
+        API -->|Persistence| DB[(SQLite Database)]
     end
 
     subgraph "Linux Kernel"
@@ -37,60 +38,51 @@ graph TD
     end
 
     F2B -.->|GeoIP| WHO[Whois API]
-    API -->|Persistence| JSON[(users.json / history.json)]
 ```
 
 ---
 
-## ✨ New in Version 1.5.0 (Smart Insights)
+## 🚀 What's New in v3.0.0 "Hardened"
 
-- **📈 System Analytics:** Live CPU and RAM usage charts, plus Uptime stability history.
-- **📱 Full Mobile Responsiveness:** New "card-based" interface for smartphones and scrollable tabs.
-- **🚀 Easy Onboarding:** Instant first-admin registration upon initial launch.
-- **🌍 Intelligent Whois:** Detailed ISP and country info for any IP in one click.
-- **🛡️ Fail2Ban Pro:** Ability to unban IPs directly from the dashboard.
-
-## 🚀 Key Advantages
-
-- **Direct nftables Engine:** Works with native nftables JSON format. Zero conflicts with Docker rules.
-- **🕰️ Time Machine (Snapshots):** Automatically takes configuration snapshots before every change. Safe one-click rollback.
-- **📈 Activity Monitoring:** Sparklines for every rule show real-time traffic activity (pkts/sec).
-- **🚨 Panic Mode 2.0:** Instant lockdown of all unnecessary traffic while maintaining SSH and NiftyWall access.
-- **🔀 Smart NAT:** Easy port forwarding management with automatic FORWARD chain configuration.
+- **🔐 SQLite Backend:** All states (users, logs, history) migrated from JSON files to a reliable SQLite database. Resolved Race Conditions.
+- **🛡️ Strict Input Validation:** Implemented rigorous input validation via Pydantic Regex. Full protection against NFT injections.
+- **🕰️ Isolated Time Machine:** Backup and Restore now work exclusively with the `niftywall` table. The system no longer affects Docker or VPN rules during rollback.
+- **🚨 Dynamic Panic Mode:** Configure allowed ports and interfaces via environment variables (`PANIC_ALLOWED_PORTS`).
+- **🔄 Smart DNAT + SNAT:** Automatic addition of Masquerade rules to eliminate asymmetric routing issues in NAT.
+- **🕵️ Resilient Fail2Ban:** New parsing logic independent of log files, capable of querying status directly via `fail2ban-client`.
 
 ---
 
-## 🛠️ Quick Start
+## 🛠️ Bare Metal Installation (Classic Branch)
 
-### Via Docker (Recommended)
-```bash
-docker pull webyhomelab/niftywall:latest
-docker run -d --name niftywall --privileged --network host \
-  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
-  -v /var/run/fail2ban:/var/run/fail2ban \
-  -v /opt/niftywall/snapshots:/app/snapshots \
-  -v /opt/niftywall/data:/app/data \
-  -e SECRET_KEY="your_secure_random_string_here" \
-  webyhomelab/niftywall:latest
-```
-*Note: `--privileged` and `--network host` are required for direct interaction with nftables.*
+This version (`classic`) is optimized to run directly on the host (without Docker) using Systemd and Gunicorn.
 
-### Manual Installation (Ubuntu 24.04)
 ```bash
-git clone https://github.com/weby-homelab/niftywall.git
-cd niftywall
+# 1. Clone repository and switch to classic branch
+git clone -b classic https://github.com/weby-homelab/niftywall.git /opt/niftywall
+cd /opt/niftywall
+
+# 2. Setup environment
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+
+# 3. Setup configuration
 cp .env.example .env
-# Start the service via systemd (see documentation below)
+# Edit .env and add a secure SECRET_KEY
+# SECRET_KEY=$(openssl rand -hex 32)
+
+# 4. Install and start service
+cp niftywall.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now niftywall
 ```
 
 ---
 
 ## 📜 Update History
+- **v3.0.0**: "Hardened" release. Full refactor, SQLite, security, and isolated backups.
 - **v2.0.1**: Hotfix for UI layout and DNAT rule disambiguation in `inet` tables.
 - **v2.0.0**: "Autonomy" release. Full rule isolation, seamless Docker compatibility without conflicts.
-- **v1.5.2**: Stability hotfixes for Smart Insights.
 - **v1.5.0**: "Smart Insights" release. Charts, mobile UI, Unban, Whois.
 
 ## 📋 Detailed System Requirements and Environments
