@@ -7,10 +7,10 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v1.5.2 "Smart Insights"
+# 🛡️ NiftyWall v2.0.1 "Autonomy"
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-[![Version](https://img.shields.io/badge/version-1.5.2-emerald.svg)](https://github.com/weby-homelab/niftywall)
+[![Version](https://img.shields.io/badge/version-2.0.1-emerald.svg)](https://github.com/weby-homelab/niftywall)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
 
@@ -107,5 +107,8 @@ cp .env.example .env
 ---
 <p align="center">
   Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
+  <strong>✦ 2026 Weby Homelab ✦</strong>
+</p>
+�� in Kyiv under air raid sirens and blackouts<br>
   <strong>✦ 2026 Weby Homelab ✦</strong>
 </p>
