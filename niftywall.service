@@ -5,10 +5,12 @@ After=network.target nftables.service
 [Service]
 User=root
 Group=root
-WorkingDirectory=/root/geminicli/weby-homelab/niftywall
-Environment="PATH=/root/geminicli/weby-homelab/niftywall/venv/bin"
-ExecStart=/root/geminicli/weby-homelab/niftywall/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+WorkingDirectory=/opt/niftywall
+Environment="PATH=/opt/niftywall/venv/bin"
+EnvironmentFile=/opt/niftywall/.env
+ExecStart=/opt/niftywall/venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8080 --timeout 120
 Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target

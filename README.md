@@ -60,29 +60,28 @@ graph TD
 
 ---
 
-## 🛠️ Швидкий старт
+## 🛠️ Встановлення на Bare Metal (Гілка Classic)
 
-### Через Docker (Рекомендовано)
-```bash
-docker pull webyhomelab/niftywall:latest
-docker run -d --name niftywall --privileged --network host \
-  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
-  -v /var/run/fail2ban:/var/run/fail2ban \
-  -v /opt/niftywall/snapshots:/app/snapshots \
-  -v /opt/niftywall/data:/app/data \
-  -e SECRET_KEY="your_secure_random_string_here" \
-  webyhomelab/niftywall:latest
-```
-*Примітка: `--privileged` та `--network host` необхідні для прямої взаємодії з nftables.*
+Ця версія (`classic`) оптимізована для роботи безпосередньо на хості (без Docker) за допомогою Systemd та Gunicorn.
 
-### Ручне встановлення (Ubuntu 24.04)
 ```bash
-git clone https://github.com/weby-homelab/niftywall.git
-cd niftywall
+# 1. Клонування репозиторію та перехід на гілку classic
+git clone -b classic https://github.com/weby-homelab/niftywall.git /opt/niftywall
+cd /opt/niftywall
+
+# 2. Налаштування середовища
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+
+# 3. Налаштування конфігурації
 cp .env.example .env
-# Запустіть сервіс через systemd (див. документацію нижче)
+# Відредагуйте .env і додайте надійний SECRET_KEY
+# SECRET_KEY=$(openssl rand -hex 32)
+
+# 4. Встановлення та запуск сервісу
+cp niftywall.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now niftywall
 ```
 
 ---
