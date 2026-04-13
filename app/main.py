@@ -165,7 +165,19 @@ async def get_ruleset(user: str = Depends(get_current_user)):
 
 @app.post("/api/ruleset/advanced")
 async def add_advanced_rule(data: dict = Body(...), user: str = Depends(get_current_user)):
-    res = nft.add_advanced_rule(data)
+    res = nft.add_advanced_rule(
+        family=data.get('family', 'ip'),
+        table=data.get('table', 'filter'),
+        chain=data.get('chain', 'input'),
+        protocol=data.get('protocol', 'tcp'),
+        ports=str(data.get('ports', '')),
+        source=data.get('source', 'any'),
+        action=data.get('action', 'accept'),
+        rate_enabled=data.get('rate_enabled', False),
+        rate=int(data.get('rate', 0)),
+        unit=data.get('unit', 'second'),
+        burst=int(data.get('burst', 0))
+    )
     if res["success"]:
         log_action(user, "ADD_RULE", f"New rule in {data.get('chain')}")
         return {"status": "success", "message": res["message"]}
