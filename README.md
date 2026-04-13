@@ -7,14 +7,14 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v2.0.1 "Autonomy"
+# 🛡️ NiftyWall v3.0.0 "Hardened"
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-[![Version](https://img.shields.io/badge/version-2.0.1-emerald.svg)](https://github.com/weby-homelab/niftywall)
+[![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](https://github.com/weby-homelab/niftywall)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
 
-**NiftyWall** — це професійний веб-дашборд для керування `nftables`, створений для тих, хто цінує швидкість, естетику та повний контроль. На відміну від UFW чи Firewalld, NiftyWall не створює "свій світ" правил, а працює безпосередньо з ядром Linux, візуалізуючи реальний стан вашого фаєрвола.
+**NiftyWall** — це професійний веб-дашборд для керування фаєрволом. У версії v3.0.0 проект пройшов повний аудит та рефакторинг для досягнення Enterprise-стабільності та безпеки.
 
 ---
 
@@ -29,6 +29,7 @@ graph TD
         API -->|Subprocess / JSON| NFT[nftables Engine]
         API -->|Log Analysis| F2B[Fail2Ban Parser]
         API -->|Metrics| SYS[psutil System Monitor]
+        API -->|Persistence| DB[(SQLite Database)]
     end
 
     subgraph "Linux Kernel"
@@ -37,26 +38,18 @@ graph TD
     end
 
     F2B -.->|GeoIP| WHO[Whois API]
-    API -->|Persistence| JSON[(users.json / history.json)]
 ```
 
 ---
 
-## ✨ Нове у версії 1.5.0 (Smart Insights)
+## 🚀 Що нового у v3.0.0 "Hardened"
 
-- **📈 Системна аналітика:** Живі графіки завантаження CPU та RAM, а також історія стабільності Uptime.
-- **📱 Повна мобільна адаптивність:** Новий "картковий" інтерфейс для смартфонів та скрол-таби.
-- **🚀 Easy Onboarding:** Миттєва реєстрація першого адміністратора при запуску.
-- **🌍 Інтелектуальний Whois:** Детальна інформація про провайдера та країну будь-якої IP в один клік.
-- **🛡️ Fail2Ban Pro:** Можливість розбанювати IP безпосередньо з дашборду.
-
-## 🚀 Ключові переваги
-
-- **Direct nftables Engine:** Робота з нативним JSON-форматом nftables. Жодних конфліктів із правилами Docker.
-- **🕰️ Time Machine (Snapshots):** Автоматичне створення знімків конфігурації перед кожною зміною. Безпечний відкат в один клік.
-- **📈 Activity Monitoring:** Спарклайни для кожного правила показують активність трафіку (pkts/sec) в реальному часі.
-- **🚨 Panic Mode 2.0:** Миттєве блокування всього зайвого зі збереженням доступу до SSH та самого NiftyWall.
-- **🔀 Smart NAT:** Легке керування прокиданням портів з автоматичним налаштуванням ланцюжків FORWARD.
+- **🔐 SQLite Backend:** Усі стани (користувачі, логи, історія) перенесені з JSON-файлів у надійну базу даних SQLite. Вирішено проблему Race Conditions.
+- **🛡️ Strict Input Validation:** Впроваджено сувору валідацію всіх вхідних даних через Pydantic Regex. Повний захист від NFT-ін'єкцій.
+- **🕰️ Isolated Time Machine:** Бекапи та відновлення тепер працюють виключно з таблицею `niftywall`. Система більше не зачіпає правила Docker чи VPN при відкаті.
+- **🚨 Dynamic Panic Mode:** Можливість конфігурувати дозволені порти та інтерфейси через змінні середовища (`PANIC_ALLOWED_PORTS`).
+- **🔄 Smart DNAT + SNAT:** Автоматичне додавання правил маскарадінгу (Masquerade) для усунення проблем асиметричної маршрутизації в NAT.
+- **🕵️ Resilient Fail2Ban:** Нова логіка парсингу, яка не залежить від наявності лог-файлів та вміє запитувати статус напряму через `fail2ban-client`.
 
 ---
 
@@ -87,8 +80,9 @@ systemctl enable --now niftywall
 ---
 
 ## 📜 Історія оновлень
+- **v3.0.0**: Реліз "Hardened". Повний рефакторинг, SQLite, безпека та ізольовані бекапи.
+- **v2.0.1**: Hotfix верстки та сумісності DNAT-правил для `inet`.
 - **v2.0.0**: Реліз "Autonomy". Повна ізоляція правил, сумісність з Docker без конфліктів.
-- **v1.5.2**: Stability hotfixes для Smart Insights.
 - **v1.5.0**: Реліз "Smart Insights". Графіки, мобільний інтерфейс, Unban, Whois.
 
 ## 📋 Детальні Системні Вимоги та Сумісність (Environments)
@@ -120,15 +114,5 @@ systemctl enable --now niftywall
 ---
 <p align="center">
   Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
-  <strong>✦ 2026 Weby Homelab ✦</strong>
-</p>
-вання правилами.
-
----
-<p align="center">
-  Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
-  <strong>✦ 2026 Weby Homelab ✦</strong>
-</p>
-�� in Kyiv under air raid sirens and blackouts<br>
   <strong>✦ 2026 Weby Homelab ✦</strong>
 </p>
