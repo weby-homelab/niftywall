@@ -16,11 +16,11 @@
   <img src="https://img.shields.io/badge/Security-Hardened-blueviolet?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security">
 </p>
 
-# 🛡️ NiftyWall v3.0.1 "Hardened" - Bare Metal Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+# 🛡️ NiftyWall v3.0.2 "Hardened" - Bare Metal Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
 
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-**NiftyWall** — це професійний веб-дашборд для керування фаєрволом nftables. У версії v3.0.1 проект пройшов повний аудит для досягнення Enterprise-стабільності. Ця редакція (`classic`) оптимізована для роботи безпосередньо на хост-системі, забезпечуючи максимальну продуктивність та прямий доступ до Netlink API ядра.
+**NiftyWall** — це професійний веб-дашборд для керування фаєрволом nftables. У версії v3.0.2 проект пройшов повний аудит для досягнення Enterprise-стабільності. Ця редакція (`classic`) оптимізована для роботи безпосередньо на хост-системі, забезпечуючи максимальну продуктивність та прямий доступ до Netlink API ядра.
 
 ---
 
@@ -48,7 +48,7 @@ graph TD
 
 ---
 
-## 🚀 Що нового у v3.0.1 "Hardened"
+## 🚀 Що нового у v3.0.2 "Hardened"
 
 - **🔐 SQLite Backend:** Усі стани перенесені в надійну БД SQLite. Вирішено проблему Race Conditions.
 - **🛡️ Strict Input Validation:** Сувора валідацію всіх вхідних даних через Pydantic. Повний захист від NFT-ін'єкцій.

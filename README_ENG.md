@@ -16,11 +16,11 @@
   <img src="https://img.shields.io/badge/Security-Hardened-blueviolet?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security">
 </p>
 
-# 🛡️ NiftyWall v3.0.1 "Hardened" - Bare Metal Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+# 🛡️ NiftyWall v3.0.2 "Hardened" - Bare Metal Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
 
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-**NiftyWall** is a professional web dashboard for managing the nftables firewall. In the v3.0.1 update, the project underwent a full audit to achieve Enterprise-grade stability. This edition (`classic`) is optimized to run directly on the host system, providing maximum performance and direct access to the kernel's Netlink API.
+**NiftyWall** is a professional web dashboard for managing the nftables firewall. In the v3.0.2 update, the project underwent a full audit to achieve Enterprise-grade stability. This edition (`classic`) is optimized to run directly on the host system, providing maximum performance and direct access to the kernel's Netlink API.
 
 ---
 
@@ -48,7 +48,7 @@ graph TD
 
 ---
 
-## 🚀 What's New in v3.0.1 "Hardened"
+## 🚀 What's New in v3.0.2 "Hardened"
 
 - **🔐 SQLite Backend:** All states migrated to a reliable SQLite database. Resolved Race Conditions.
 - **🛡️ Strict Input Validation:** Rigorous input validation via Pydantic. Full protection against NFT injections.
