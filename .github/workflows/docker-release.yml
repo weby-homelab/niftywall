@@ -46,7 +46,19 @@ jobs:
       - name: Update Docker Hub Overview
         run: |
           TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "webyhomelab", "password": "${{ secrets.DOCKER_HUB_TOKEN }}"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
-          OVERVIEW=$(cat README.md && echo -e "\n---\n" && cat README_ENG.md)
+          
+          # 1. Очищуємо контент від HTML перемикачів та бейджів для Docker Hub
+          # Видаляємо всі <p align="center"> блоки до першого H1 заголовоку
+          EN_CLEAN=$(sed '1,/# /d' README_ENG.md | sed '0,/# /s//# /')
+          UA_CLEAN=$(sed '1,/# /d' README.md | sed '0,/# /s//# /')
+          
+          # 2. Формуємо навігацію з абсолютними посиланнями на GitHub
+          NAV="[English 🇬🇧](https://github.com/weby-homelab/niftywall/blob/main/README_ENG.md) | [Українська 🇺🇦](https://github.com/weby-homelab/niftywall/blob/main/README.md)\n\n---\n"
+          
+          # 3. Збираємо фінальний опис: EN перша, UA друга
+          OVERVIEW=$(echo -e "${NAV}\n${EN_CLEAN}\n\n---\n\n${UA_CLEAN}\n\n---\nMade with ❤️ in Kyiv\n✦ 2026 Weby Homelab ✦")
+          
+          # 4. Пушимо оновлений опис
           curl -s -X PATCH -H "Content-Type: application/json" -H "Authorization: JWT ${TOKEN}" \
             -d "{\"full_description\": $(echo "$OVERVIEW" | jq -R -s .)}" \
             https://hub.docker.com/v2/repositories/webyhomelab/niftywall/
