@@ -20,7 +20,7 @@
 
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-**NiftyWall** is a professional web dashboard for managing the nftables firewall. In the v3.0.0 update, the project underwent a full audit to achieve Enterprise-grade stability. This edition (`classic`) is optimized to run directly on the host system, providing maximum performance and minimal resource consumption.
+**NiftyWall** is a professional web dashboard for managing the nftables firewall. In the v3.0.0 update, the project underwent a full audit to achieve Enterprise-grade stability. This edition (`classic`) is optimized to run directly on the host system, providing maximum performance and direct access to the kernel's Netlink API.
 
 ---
 
@@ -107,13 +107,22 @@ systemctl enable --now niftywall
 
 ---
 
-## 📋 Compatibility and Environments
+## 📋 Detailed System Requirements and Environments
 
-### 🟢 Native Bare Metal / Cloud VPS
-Ideal environment. NiftyWall initializes the `inet niftywall` table with **priority -100**. This ensures direct interaction with the kernel's Netlink API without containerization overhead.
+### 🟢 1. Ideal Environment (Native Bare Metal / Cloud VPS)
+*Transparent kernel management without intermediaries.*
+- **How it works:** NiftyWall initializes the `inet niftywall` table in the `nftables` stack. It uses `filter` type for `input` and `forward` chains with **priority -100**, allowing packet processing at early stages of the network stack.
+- **Features:** Highest rule processing speed and 100% predictability. No rule will be ignored by third-party services.
 
-### 🟡 Mixed Environment (Docker / LXC)
-NiftyWall works correctly alongside Docker. NiftyWall rules trigger before Docker rules, allowing you to filter traffic before it hits the container network bridges.
+### 🟡 2. Mixed Environment (Servers with Docker / LXC / KVM)
+*Harmonious coexistence with containerization.*
+- **"Shield-First" Concept:** Thanks to **priority -100**, NiftyWall becomes the "first line of defense." Packets hit your rules **BEFORE** they are routed to the `DOCKER-USER` or `FORWARD` chains of the Docker package manager.
+- **Table Isolation:** Operating in its own namespace (`table inet niftywall`) eliminates the risk of accidentally deleting Docker rules during configuration updates.
+
+### 🔴 3. Hostile Environment (UFW or Firewalld active)
+*Risk of conflicts and rule "shadowing".*
+- **The Problem:** Since `nftables` allows multiple tables to work in parallel, a packet must be allowed in **both** systems simultaneously. This creates situations where NiftyWall allows traffic, but a legacy manager blocks it "in the shadow."
+- **Solution:** It is recommended to execute `systemctl disable --now ufw` or `firewalld` before activating NiftyWall. If you specifically need a GUI for them, use: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
 
 ---
 
