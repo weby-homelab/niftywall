@@ -29,23 +29,29 @@
 ```mermaid
 graph TD
     User((Адміністратор)) -->|HTTPS / PWA| UI[Web Dashboard]
-    
-    subgraph "NiftyWall Core"
-        UI -->|REST API / JWT| API[FastAPI Backend]
-        API -->|Subprocess / JSON| NFT[nftables Engine]
-        API -->|Log Analysis| F2B[Fail2Ban Parser]
-        API -->|Metrics| SYS[psutil System Monitor]
-        API -->|Persistence| DB[(SQLite Database)]
+
+    subgraph "Docker Container (Host Network)"
+        subgraph "NiftyWall Core"
+            UI -->|REST API / JWT| API[FastAPI Backend]
+            API -->|Pydantic| VAL{Input Validator}
+            VAL -->|Subprocess / JSON| NFT[nftables Engine]
+            VAL -->|Socket / Logs| F2B[Fail2Ban Parser]
+            VAL -->|Metrics| SYS[psutil System Monitor]
+            API -->|Persistence| DB[(SQLite Database)]
+            API -->|Isolated Backup| TM[Time Machine]
+        end
     end
 
-    subgraph "Linux Kernel"
-        NFT -->|Netlink| Netfilter[Kernel Hooks]
-        Netfilter -->|Packet Counters| NFT
+    subgraph "Host OS"
+        F2B -.->|Volume Mount| HostF2B[fail2ban sockets & logs]
+        subgraph "Linux Kernel"
+            NFT -->|Netlink| Netfilter[Kernel Hooks]
+            Netfilter -->|Packet Counters| NFT
+        end
     end
 
     F2B -.->|GeoIP| WHO[Whois API]
 ```
-
 ---
 
 ## 🚀 Що нового у версії "Hardened"
