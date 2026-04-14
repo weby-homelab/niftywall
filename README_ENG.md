@@ -12,9 +12,13 @@
 <p align="center">
   <img src="https://img.shields.io/github/v/release/weby-homelab/niftywall?style=for-the-badge&color=emerald" alt="Latest Release">
   <img src="https://img.shields.io/badge/Branch-main_(Docker)-00b894?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
+  <img src="https://img.shields.io/badge/Platform-Ubuntu_24.04-orange?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Platform">
+  <img src="https://img.shields.io/badge/Security-Hardened-blueviolet?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security">
 </p>
 
 # 🛡️ NiftyWall v3.0.0 "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+
+*Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
 **NiftyWall** is a professional web dashboard for firewall management. In the v3.0.0 update, the project underwent a full audit and refactoring to achieve Enterprise-grade stability and security.
 
@@ -59,23 +63,52 @@ graph TD
 
 ## 🛠️ Quick Start (Docker Edition)
 
-The recommended way for a fast and isolated deployment.
+### 📦 Prerequisites
+- **Docker Engine** 24.0+ and **Docker Compose** v2.
+- `nftables` package installed on the host system.
+- `root` privileges to access Kernel Hooks.
 
-```bash
-# 1. Pull the latest image
-docker pull webyhomelab/niftywall:latest
+### 🚀 Launching the System
+Recommended way using `docker-compose.yml`:
 
-# 2. Run the system
-docker run -d --name niftywall --privileged --network host \
-  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
-  -v /var/run/fail2ban:/var/run/fail2ban \
-  -v /opt/niftywall/snapshots:/app/snapshots \
-  -v /opt/niftywall/data:/app/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
-  webyhomelab/niftywall:latest
+```yaml
+services:
+  niftywall:
+    image: webyhomelab/niftywall:latest
+    container_name: niftywall
+    privileged: true
+    network_mode: host
+    restart: always
+    environment:
+      - SECRET_KEY=YOUR_SUPER_SECRET_KEY
+      - TZ=Europe/Kyiv
+    volumes:
+      - /var/log/fail2ban.log:/var/log/fail2ban.log:ro
+      - /var/run/fail2ban:/var/run/fail2ban
+      - /opt/niftywall/snapshots:/app/snapshots
+      - /opt/niftywall/data:/app/data
 ```
 
-*Note: `--privileged` and `--network host` are required for direct interaction with nftables.*
+```bash
+# Run with a single command
+docker compose up -d
+```
+
+### ⚙️ Environment Variables (.env)
+
+| Variable | Description | Default Value |
+| :--- | :--- | :--- |
+| `SECRET_KEY` | Key for JWT token encryption | *Must be generated* |
+| `PANIC_ALLOWED_PORTS` | Ports that remain open in Panic Mode | `22,80,443,54322` |
+| `LOG_LEVEL` | Logging level (info, debug, warning) | `info` |
+| `DB_PATH` | Path to the SQLite file inside the container | `/app/data/niftywall.db` |
+
+---
+
+## 💎 Advantages of Docker Edition
+- **⚡ Speed:** Deployment in seconds without Python dependency conflicts.
+- **🛡️ Isolation:** Application code runs in an isolated container, accessing only necessary host resources.
+- **🔄 Easy Updates:** Simply `docker pull` and restart the container.
 
 ---
 

@@ -12,9 +12,13 @@
 <p align="center">
   <img src="https://img.shields.io/github/v/release/weby-homelab/niftywall?style=for-the-badge&color=emerald" alt="Latest Release">
   <img src="https://img.shields.io/badge/Branch-main_(Docker)-00b894?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
+  <img src="https://img.shields.io/badge/Platform-Ubuntu_24.04-orange?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Platform">
+  <img src="https://img.shields.io/badge/Security-Hardened-blueviolet?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security">
 </p>
 
 # 🛡️ NiftyWall v3.0.0 "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+
+*Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
 **NiftyWall** — це професійний веб-дашборд для керування фаєрволом. У версії v3.0.0 проект пройшов повний аудит та рефакторинг для досягнення Enterprise-стабільності та безпеки.
 
@@ -59,23 +63,52 @@ graph TD
 
 ## 🛠️ Швидкий старт (Docker Edition)
 
-Рекомендований спосіб для швидкого запуску в ізольованому середовищі.
+### 📦 Попередні вимоги
+- **Docker Engine** 24.0+ та **Docker Compose** v2.
+- Встановлений пакет `nftables` на хост-системі.
+- Права `root` для доступу до Kernel Hooks.
 
-```bash
-# 1. Завантажте docker-compose.yml (опціонально) або просто запустіть образ
-docker pull webyhomelab/niftywall:latest
+### 🚀 Запуск системи
+Рекомендований спосіб через `docker-compose.yml`:
 
-# 2. Запустіть систему
-docker run -d --name niftywall --privileged --network host \
-  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
-  -v /var/run/fail2ban:/var/run/fail2ban \
-  -v /opt/niftywall/snapshots:/app/snapshots \
-  -v /opt/niftywall/data:/app/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
-  webyhomelab/niftywall:latest
+```yaml
+services:
+  niftywall:
+    image: webyhomelab/niftywall:latest
+    container_name: niftywall
+    privileged: true
+    network_mode: host
+    restart: always
+    environment:
+      - SECRET_KEY=YOUR_SUPER_SECRET_KEY
+      - TZ=Europe/Kyiv
+    volumes:
+      - /var/log/fail2ban.log:/var/log/fail2ban.log:ro
+      - /var/run/fail2ban:/var/run/fail2ban
+      - /opt/niftywall/snapshots:/app/snapshots
+      - /opt/niftywall/data:/app/data
 ```
 
-*Примітка: `--privileged` та `--network host` необхідні для прямої взаємодії з nftables.*
+```bash
+# Запуск однією командою
+docker compose up -d
+```
+
+### ⚙️ Змінні середовища (.env)
+
+| Змінна | Опис | Значення за замовчуванням |
+| :--- | :--- | :--- |
+| `SECRET_KEY` | Ключ для шифрування JWT токенів | *Обов'язково згенерувати* |
+| `PANIC_ALLOWED_PORTS` | Порти, що залишаються відкритими у Panic Mode | `22,80,443,54322` |
+| `LOG_LEVEL` | Рівень логування (info, debug, warning) | `info` |
+| `DB_PATH` | Шлях до файлу SQLite всередині контейнера | `/app/data/niftywall.db` |
+
+---
+
+## 💎 Переваги Docker Edition
+- **⚡ Швидкість:** Розгортання за лічені секунди без конфліктів залежностей Python.
+- **🛡️ Ізоляція:** Код додатку працює в ізольованому контейнері, маючи доступ лише до необхідних ресурсів хоста.
+- **🔄 Легке оновлення:** Достатньо виконати `docker pull` та перезапустити контейнер.
 
 ---
 
