@@ -7,14 +7,20 @@
   </a>
 </p>
 
-# 🛡️ NiftyWall v3.0.0 "Hardened"
+<br>
+
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/weby-homelab/niftywall?style=for-the-badge&color=emerald" alt="Latest Release">
+  <img src="https://img.shields.io/badge/Branch-main_(Docker)-00b894?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
+  <img src="https://img.shields.io/badge/Security-Hardened-blueviolet?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security">
+  <img src="https://img.shields.io/docker/pulls/webyhomelab/niftywall?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
+</p>
+
+# 🛡️ NiftyWall v3.0.0 "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-[![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](https://github.com/weby-homelab/niftywall)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Ubuntu_24.04-orange.svg)]()
-
-**NiftyWall** — це професійний веб-дашборд для керування фаєрволом. У версії v3.0.0 проект пройшов повний аудит та рефакторинг для досягнення Enterprise-стабільності та безпеки.
+**NiftyWall** — це професійний веб-дашборд для керування фаєрволом nftables. У версії v3.0.0 проект пройшов повний аудит для досягнення Enterprise-стабільності та безпеки. Ця редакція (`main`) оптимізована для швидкого розгортання в ізольованому середовищі Docker.
 
 ---
 
@@ -44,72 +50,63 @@ graph TD
 
 ## 🚀 Що нового у v3.0.0 "Hardened"
 
-- **🔐 SQLite Backend:** Усі стани (користувачі, логи, історія) перенесені з JSON-файлів у надійну базу даних SQLite. Вирішено проблему Race Conditions.
-- **🛡️ Strict Input Validation:** Впроваджено сувору валідацію всіх вхідних даних через Pydantic Regex. Повний захист від NFT-ін'єкцій.
-- **🕰️ Isolated Time Machine:** Бекапи та відновлення тепер працюють виключно з таблицею `niftywall`. Система більше не зачіпає правила Docker чи VPN при відкаті.
-- **🚨 Dynamic Panic Mode:** Можливість конфігурувати дозволені порти та інтерфейси через змінні середовища (`PANIC_ALLOWED_PORTS`).
-- **🔄 Smart DNAT + SNAT:** Автоматичне додавання правил маскарадінгу (Masquerade) для усунення проблем асиметричної маршрутизації в NAT.
-- **🕵️ Resilient Fail2Ban:** Нова логіка парсингу, яка не залежить від наявності лог-файлів та вміє запитувати статус напряму через `fail2ban-client`.
+- **🔐 SQLite Backend:** Усі стани (користувачі, логи, історія) перенесені в надійну БД SQLite. Вирішено проблему Race Conditions.
+- **🛡️ Strict Input Validation:** Сувора валідація всіх вхідних даних через Pydantic. Повний захист від NFT-ін'єкцій.
+- **🕰️ Isolated Time Machine:** Бекапи працюють виключно з таблицею `niftywall`, не зачіпаючи правила Docker чи VPN.
+- **🔄 Smart DNAT + SNAT:** Автоматичне додавання правил маскарадінгу для усунення проблем асиметричної маршрутизації.
+- **🕵️ Resilient Fail2Ban:** Нова логіка парсингу, що працює напряму через `fail2ban-client`.
 
 ---
 
-## 🛠️ Встановлення на Bare Metal (Гілка Classic)
+## 🛠️ Встановлення (Docker Edition)
 
-Ця версія (`classic`) оптимізована для роботи безпосередньо на хості (без Docker) за допомогою Systemd та Gunicorn.
+Цей метод забезпечує повну ізоляцію коду від хост-системи, використовуючи лише необхідні Kernel Hooks.
 
+### 1. Попередні вимоги
+- **Docker Engine** 24.0+ та **Docker Compose** v2.
+- Наявність `nftables` у хост-системі (для завантаження модулів ядра).
+
+### 2. Розгортання через Docker Compose
+Створіть `docker-compose.yml`:
+
+```yaml
+services:
+  niftywall:
+    image: webyhomelab/niftywall:latest
+    container_name: niftywall
+    privileged: true # Необхідно для керування nftables
+    network_mode: host # Необхідно для прямого доступу до інтерфейсів
+    restart: always
+    environment:
+      - SECRET_KEY=${SECRET_KEY} # openssl rand -hex 32
+      - PANIC_ALLOWED_PORTS=22,80,443,54322
+      - TZ=Europe/Kyiv
+    volumes:
+      - /var/log/fail2ban.log:/var/log/fail2ban.log:ro
+      - /var/run/fail2ban:/var/run/fail2ban
+      - /opt/niftywall/data:/app/data
+      - /opt/niftywall/snapshots:/app/snapshots
+```
+
+### 3. Запуск
 ```bash
-# 1. Клонування репозиторію та перехід на гілку classic
-git clone -b classic https://github.com/weby-homelab/niftywall.git /opt/niftywall
-cd /opt/niftywall
-
-# 2. Налаштування середовища
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Налаштування конфігурації
-cp .env.example .env
-# Відредагуйте .env і додайте надійний SECRET_KEY
-# SECRET_KEY=$(openssl rand -hex 32)
-
-# 4. Встановлення та запуск сервісу
-cp niftywall.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now niftywall
+docker compose up -d
 ```
 
 ---
 
-## 📜 Історія оновлень
-- **v3.0.0**: Реліз "Hardened". Повний рефакторинг, SQLite, безпека та ізольовані бекапи.
-- **v2.0.1**: Hotfix верстки та сумісності DNAT-правил для `inet`.
-- **v2.0.0**: Реліз "Autonomy". Повна ізоляція правил, сумісність з Docker без конфліктів.
-- **v1.5.0**: Реліз "Smart Insights". Графіки, мобільний інтерфейс, Unban, Whois.
+## 📋 Сумісність та середовища
 
-## 📋 Детальні Системні Вимоги та Сумісність (Environments)
+### 🟢 Змішане середовище (Docker / LXC / KVM)
+NiftyWall ініціалізує таблицю `inet niftywall` з пріоритетом **-100**. Це означає, що ваші правила спрацьовують **ДО** того, як трафік потрапить у ланцюги Docker. Ви можете безпечно блокувати загрози на вході, не ламаючи мережу контейнерів.
 
-Проект NiftyWall v2.0+ побудовано за принципом **абсолютної автономії**. Завдяки використанню ізольованої таблиці `inet niftywall` з найвищим пріоритетом ланцюгів (-100/-150), NiftyWall коректно працює у широкому спектрі середовищ.
+### 🔴 Вороже середовище (UFW / Firewalld)
+Обов'язково виконайте `systemctl disable --now ufw`, оскільки паралельна робота двох менеджерів призводить до "затінення" правил (пакет має бути дозволений в обох таблицях одночасно).
 
-### 🟢 1. Базові вимоги (Для всіх систем)
-- **ОС:** Ubuntu 24.04 (LTS), Debian 12 або сучасний Linux з ядром **6.8+**.
-- **Ядро / Движок:** `nftables` версії **1.0.9** або новіше.
-- **Доступ:** Права `root` (або `sudo`) для безпосереднього керування правилами ядра.
+---
 
-### 🟢 2. Ідеальне середовище (Native Bare Metal / Cloud VPS)
-*Сервери без жодних додаткових прошарків фаєрволів.*
-- **Як працює:** NiftyWall є єдиним хазяїном мережевого трафіку.
-- **Особливості:** Найвища швидкість обробки правил, 100% передбачуваність, ідеально для високозавантажених шлюзів, маршрутизаторів або VPN-серверів.
-
-### 🟡 3. Змішане середовище (Сервери з Docker / LXC)
-*Сервери, де активно використовується контейнеризація.*
-- **Як працює:** Docker використовує підсистему `iptables-nft`, яка створює свої правила у системних таблицях (наприклад, `ip filter`, `ip nat`).
-- **Сумісність:** **Повна (Починаючи з v2.0).** NiftyWall більше не конфліктує з Docker.
-- **Особливості:** Усі ваші правила з NiftyWall будуть застосовані до трафіку **раніше**, ніж він дійде до правил Docker. Завдяки цьому ви можете безпечно блокувати (Drop) небажаний трафік ще до того, як він потрапить у відкриті порти ваших контейнерів.
-
-### 🔴 4. Вороже середовище (UFW або Firewalld)
-*Сервери, де вже активний інший високорівневий менеджер (наприклад, `ufw enable` чи `systemctl start firewalld`).*
-- **Сумісність:** **Часткова / Не рекомендовано.**
-- **Чому:** UFW створює десятки незрозумілих мікро-ланцюгів. Хоча правила NiftyWall (завдяки пріоритету) спрацюють першими, будь-який рестарт UFW може повністю переписати конфігурацію ядра і викликати непередбачувану поведінку. 
-- **Рішення:** NiftyWall створено як **заміну** для UFW/Firewalld. Рекомендується вимкнути їх (`ufw disable` або `systemctl disable firewalld`) перед використанням NiftyWall.
+## 📥 Інші варіанти
+Для максимальної продуктивності на VPS з обмеженими ресурсами (RAM < 512MB) використовуйте гілку [classic](https://github.com/weby-homelab/niftywall/tree/classic).
 
 ---
 <p align="center">
