@@ -50,7 +50,7 @@ graph TD
 
 ## 🚀 What's New in v3.0.0 "Hardened"
 
-- **🔐 SQLite Backend:** All states (users, logs, history) migrated to a reliable SQLite database. Resolved Race Conditions.
+- **🔐 SQLite Backend:** All states migrated to a reliable SQLite database. Resolved Race Conditions.
 - **🛡️ Strict Input Validation:** Rigorous input validation via Pydantic. Full protection against NFT injections.
 - **🕰️ Isolated Time Machine:** Backup and Restore work exclusively with the `niftywall` table, without affecting Docker or VPN rules.
 - **🔄 Smart DNAT + SNAT:** Automatic addition of Masquerade rules to eliminate asymmetric routing issues.
@@ -95,18 +95,26 @@ docker compose up -d
 
 ---
 
-## 📋 Compatibility and Environments
+## 📋 Detailed System Requirements and Environments
 
-### 🟢 Mixed Environment (Docker / LXC / KVM)
-NiftyWall initializes the `inet niftywall` table with **priority -100**. This means your rules trigger **BEFORE** traffic hits Docker's chains. You can safely block threats at the entry point without breaking the container network.
+NiftyWall is built on the principle of **absolute autonomy**. By utilizing an isolated `inet niftywall` table with high-priority chains, the system ensures stability in complex network environments.
 
-### 🔴 Hostile Environment (UFW / Firewalld)
-You must execute `systemctl disable --now ufw`, as the parallel operation of two managers leads to rule "shadowing" (a packet must be allowed in both tables simultaneously).
+### 🟢 1. Ideal Environment (Native Bare Metal / Cloud VPS)
+*Servers without additional third-party firewall layers.*
+- **How it works:** NiftyWall acts as the sole master of network traffic. It initializes `input` and `forward` chains with type `filter` and **priority -100**, allowing packet processing at the very beginning of the kernel network stack.
+- **Features:** Highest rule processing speed, 100% predictability, and zero overhead.
 
----
+### 🟡 2. Mixed Environment (Servers with Docker / LXC / KVM)
+*Servers actively utilizing containerization.*
+- **Compatibility:** **Full (v2.0+).** NiftyWall no longer conflicts with Docker.
+- **"Shield-First" Concept:** Thanks to **priority -100**, NiftyWall rules trigger **BEFORE** Docker's rules (which typically have priority 0). This allows you to block threats at the kernel level before they ever reach the virtual container bridges.
+- **Isolation:** Operating in its own namespace (`table inet niftywall`) prevents accidental deletion of Docker rules during configuration resets.
 
-## 📥 Other Options
-For maximum performance on VPS with limited resources (RAM < 512MB), use the [classic](https://github.com/weby-homelab/niftywall/tree/classic) branch.
+### 🔴 3. Hostile Environment (UFW or Firewalld active)
+*Servers where another high-level manager is already active.*
+- **Compatibility:** **Not Recommended.**
+- **The "Shadowing" Problem:** `nftables` allows multiple tables to work in parallel. A packet must be allowed in **both** systems simultaneously. If NiftyWall allows traffic but a forgotten UFW blocks it, you will face hard-to-diagnose issues.
+- **Solution:** It is recommended to execute `systemctl disable --now ufw` or `firewalld` before using NiftyWall. If you specifically need a GUI for them, use: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
 
 ---
 <p align="center">
