@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/Security-Hardened-blueviolet?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security">
 </p>
 
-# 🛡️ NiftyWall v3.0.2 "Hardened" - Bare Metal Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+# 🛡️ NiftyWall "Hardened" - Bare Metal Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
 
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
@@ -48,7 +48,7 @@ graph TD
 
 ---
 
-## 🚀 Що нового у v3.0.2 "Hardened"
+## 🚀 Що нового у версії "Hardened"
 
 - **🔐 SQLite Backend:** Усі стани перенесені в надійну БД SQLite. Вирішено проблему Race Conditions.
 - **🛡️ Strict Input Validation:** Сувора валідацію всіх вхідних даних через Pydantic. Повний захист від NFT-ін'єкцій.
