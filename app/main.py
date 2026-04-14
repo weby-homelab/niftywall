@@ -119,8 +119,10 @@ async def check_auth_middleware(request: Request, call_next):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, user: str = Depends(get_current_user)):
+    import socket
+    hostname = socket.gethostname()
     return templates.TemplateResponse(
-        request=request, name="index.html", context={"username": user}
+        request=request, name="index.html", context={"username": user, "hostname": hostname}
     )
 
 @app.get("/api/system/status")
