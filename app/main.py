@@ -150,7 +150,7 @@ async def get_system_status(user: str = Depends(get_current_user)):
             "boot_time": datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.get("/api/whois/{ip}")
 async def get_whois_info(ip: str, user: str = Depends(get_current_user)):
@@ -178,7 +178,7 @@ async def get_ruleset(user: str = Depends(get_current_user)):
             raise HTTPException(status_code=500, detail=data["error"])
         return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.post("/api/ruleset/advanced")
 async def add_advanced_rule(req: AdvancedRuleRequest, user: str = Depends(get_current_user)):
