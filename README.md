@@ -11,14 +11,16 @@
 
 <p align="center">
   <img src="https://img.shields.io/github/v/release/weby-homelab/niftywall?style=for-the-badge&color=emerald" alt="Latest Release">
-  <img src="https://img.shields.io/badge/Branch-main_(Docker)-00b894?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
+  <img src="https://img.shields.io/badge/Branch-classic_(Bare_Metal)-orange?style=for-the-badge&logo=linux&logoColor=white" alt="Branch Classic">
+  <img src="https://img.shields.io/badge/Engine-nftables-blue?style=for-the-badge&logo=linux&logoColor=white" alt="Engine">
+  <img src="https://img.shields.io/badge/Security-Hardened-blueviolet?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security">
 </p>
 
-# 🛡️ NiftyWall v3.0.0 "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+# 🛡️ NiftyWall v3.0.0 "Hardened" - Bare Metal Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
 
-**NiftyWall** — це професійний веб-дашборд для керування фаєрволом. У версії v3.0.0 проект пройшов повний аудит та рефакторинг для досягнення Enterprise-стабільності та безпеки.
+*Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-Ця гілка (`main`) містить **Docker Edition** проекту, оптимізовану для швидкого та ізольованого розгортання через Docker Compose.
+**NiftyWall** — це професійний веб-дашборд для керування фаєрволом nftables. У версії v3.0.0 проект пройшов повний аудит для досягнення Enterprise-стабільності. Ця редакція (`classic`) оптимізована для роботи безпосередньо на хост-системі, забезпечуючи максимальну продуктивність та мінімальне споживання ресурсів.
 
 ---
 
@@ -48,69 +50,75 @@ graph TD
 
 ## 🚀 Що нового у v3.0.0 "Hardened"
 
-- **🔐 SQLite Backend:** Усі стани (користувачі, логи, історія) перенесені з JSON-файлів у надійну базу даних SQLite. Вирішено проблему Race Conditions.
-- **🛡️ Strict Input Validation:** Впроваджено сувору валідацію всіх вхідних даних через Pydantic Regex. Повний захист від NFT-ін'єкцій.
-- **🕰️ Isolated Time Machine:** Бекапи та відновлення тепер працюють виключно з таблицею `niftywall`. Система більше не зачіпає правила Docker чи VPN при відкаті.
-- **🚨 Dynamic Panic Mode:** Можливість конфігурувати дозволені порти та інтерфейси через змінні середовища (`PANIC_ALLOWED_PORTS`).
-- **🔄 Smart DNAT + SNAT:** Автоматичне додавання правил маскарадінгу (Masquerade) для усунення проблем асиметричної маршрутизації в NAT.
-- **🕵️ Resilient Fail2Ban:** Нова логіка парсингу, яка не залежить від наявності лог-файлів та вміє запитувати статус напряму через `fail2ban-client`.
+- **🔐 SQLite Backend:** Усі стани перенесені в надійну БД SQLite. Вирішено проблему Race Conditions.
+- **🛡️ Strict Input Validation:** Сувора валідацію всіх вхідних даних через Pydantic. Повний захист від NFT-ін'єкцій.
+- **🕰️ Isolated Time Machine:** Бекапи працюють виключно з таблицею `niftywall`, не зачіпаючи правила Docker чи VPN.
+- **🔄 Smart DNAT + SNAT:** Автоматичне додавання правил маскарадінгу для усунення проблем асиметричної маршрутизації.
+- **🕵️ Resilient Fail2Ban:** Нова логіка парсингу, що працює напряму через `fail2ban-client`.
 
 ---
 
-## 🛠️ Швидкий старт (Docker Edition)
+## 🛠️ Встановлення (Bare Metal Edition)
 
-Рекомендований спосіб для швидкого запуску в ізольованому середовищі.
+Оптимізовано для роботи за допомогою Systemd та Uvicorn на чистому Linux.
 
+### 1. Попередні вимоги
+- **Python** 3.10+
+- **nftables** пакет (v1.0.9+)
+- **fail2ban** пакет (для аналізу логів)
+- Права **root** або **sudo**
+
+### 2. Покроковий запуск
 ```bash
-# 1. Завантажте docker-compose.yml (опціонально) або просто запустіть образ
-docker pull webyhomelab/niftywall:latest
+# Клонування репозиторію
+git clone -b classic https://github.com/weby-homelab/niftywall.git /opt/niftywall
+cd /opt/niftywall
 
-# 2. Запустіть систему
-docker run -d --name niftywall --privileged --network host \
-  -v /var/log/fail2ban.log:/var/log/fail2ban.log:ro \
-  -v /var/run/fail2ban:/var/run/fail2ban \
-  -v /opt/niftywall/snapshots:/app/snapshots \
-  -v /opt/niftywall/data:/app/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
-  webyhomelab/niftywall:latest
+# Налаштування Python
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Налаштування середовища
+cp .env.example .env
+# Генеруємо SECRET_KEY: openssl rand -hex 32
 ```
 
-*Примітка: `--privileged` та `--network host` необхідні для прямої взаємодії з nftables.*
+### 3. Налаштування Systemd
+Створіть `/etc/systemd/system/niftywall.service`:
+```ini
+[Unit]
+Description=NiftyWall Firewall Dashboard
+After=network.target nftables.service
+
+[Service]
+User=root
+WorkingDirectory=/opt/niftywall
+ExecStart=/opt/niftywall/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+systemctl daemon-reload
+systemctl enable --now niftywall
+```
 
 ---
 
-## 📥 Інші варіанти встановлення
+## 📋 Сумісність та середовища
 
-Для встановлення безпосередньо на хост-систему (Bare Metal) використовуйте гілку [classic](https://github.com/weby-homelab/niftywall/tree/classic).
+### 🟢 Native Bare Metal / Cloud VPS
+Найкраще середовище. NiftyWall ініціалізує таблицю `inet niftywall` з пріоритетом **-100**. Це забезпечує пряму взаємодію з Netlink API ядра без накладних витрат на контейнеризацію.
 
----
-
-## 📜 Історія оновлень
-- **v3.0.0**: Реліз "Hardened". Повний рефакторинг, SQLite, безпека та ізольовані бекапи.
-- **v2.0.1**: Hotfix верстки та сумісності DNAT-правил для `inet`.
-- **v2.0.0**: Реліз "Autonomy". Повна ізоляція правил, сумісність з Docker без конфліктів.
-- **v1.5.0**: Реліз "Smart Insights". Графіки, мобільний інтерфейс, Unban, Whois.
+### 🟡 Змішане середовище (Docker / LXC)
+NiftyWall коректно працює паралельно з Docker. Правила NiftyWall спрацьовують раніше за правила Docker, що дозволяє фільтрувати трафік до його потрапляння в мережеві мости контейнерів.
 
 ---
 
-## 📋 Детальні Системні Вимоги та Сумісність (Environments)
-
-Проект NiftyWall v2.0+ побудовано за принципом **абсолютної автономії**. Завдяки використанню ізольованої таблиці `inet niftywall` з найвищим пріоритетом ланцюгів (-100/-150), NiftyWall коректно працює у широкому спектрі середовищ.
-
-### 🟢 1. Базові вимоги
-- **ОС:** Ubuntu 24.04 (LTS), Debian 12 або сучасний Linux з ядром **6.8+**.
-- **Ядро / Движок:** `nftables` версії **1.0.9** або новіше.
-- **Доступ:** Права `root` (або `sudo`) для безпосереднього керування правилами ядра.
-
-### 🟡 2. Змішане середовище (Сервери з Docker / LXC)
-*Сервери, де активно використовується контейнеризація.*
-- **Сумісність:** **Повна (Починаючи з v2.0).** NiftyWall більше не конфліктує з Docker.
-- **Особливості:** Усі ваші правила з NiftyWall будуть застосовані до трафіку **раніше**, ніж він дійде до правил Docker (пріоритет -100). Це дозволяє безпечно блокувати трафік до його потрапляння в контейнери.
-
-### 🔴 3. Вороже середовище (UFW або Firewalld)
-*Сервери, де вже активний інший менеджер.*
-- **Сумісність:** **Часткова / Не рекомендовано.**
-- **Рішення:** NiftyWall створено як сучасну заміну для них. Якщо вам потрібен GUI саме для цих систем, використовуйте: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) або [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
+## 📥 Інші варіанти
+Для швидкого запуску в ізольованому середовищі використовуйте гілку [main](https://github.com/weby-homelab/niftywall/tree/main) (Docker Edition).
 
 ---
 <p align="center">
