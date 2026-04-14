@@ -34,6 +34,7 @@ class NftablesHandler:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             safe_action = "".join([c if c.isalnum() else "_" for c in action_name])
             filename = f"{timestamp}_{safe_action}.nft"
+            filename = os.path.basename(filename)
             filepath = os.path.join(SNAPSHOT_DIR, filename)
             
             # Fix Flaw 1: Isolation
@@ -76,6 +77,7 @@ class NftablesHandler:
 
     def restore_snapshot(self, filename: str) -> bool:
         """Restores ONLY the NiftyWall table from a snapshot."""
+        filename = os.path.basename(filename)
         filepath = os.path.join(SNAPSHOT_DIR, filename)
         if not os.path.exists(filepath): return False
         try:

@@ -12,6 +12,10 @@ class Fail2BanParser:
 
     def unban_ip(self, ip: str, jail: str = None) -> bool:
         """Unbans an IP using fail2ban-client."""
+        if not re.match(r"^[\d\.:a-fA-F]+$", ip):
+            print(f"Invalid IP format: {ip}")
+            return False
+            
         try:
             # Most modern versions support global unban
             cmd = ["fail2ban-client", "unban", ip]
@@ -20,6 +24,9 @@ class Fail2BanParser:
         except Exception as e:
             # Fallback to jail-specific unban if provided
             if jail:
+                if not re.match(r"^[\w\-]+$", jail):
+                    print(f"Invalid jail format: {jail}")
+                    return False
                 try:
                     cmd = ["fail2ban-client", "set", jail, "unbanip", ip]
                     subprocess.run(cmd, capture_output=True, check=True)
