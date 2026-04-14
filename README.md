@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/docker/pulls/webyhomelab/niftywall?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
 </p>
 
-# 🛡️ NiftyWall v3.0.0 "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
+# 🛡️ NiftyWall "Hardened" - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/niftywall)](https://github.com/weby-homelab/niftywall/releases/latest)
 
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
@@ -48,7 +48,7 @@ graph TD
 
 ---
 
-## 🚀 Що нового у v3.0.0 "Hardened"
+## 🚀 Що нового у версії "Hardened"
 
 - **🔐 SQLite Backend:** Усі стани (користувачі, логи, історія) перенесені в надійну БД SQLite. Вирішено проблему Race Conditions.
 - **🛡️ Strict Input Validation:** Сувора валідація всіх вхідних даних через Pydantic. Повний захист від NFT-ін'єкцій.
