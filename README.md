@@ -47,7 +47,7 @@ graph TD
         end
     end
 
-    F2B -.->|GeoIP| WHO<Whois API>
+    F2B -.->|GeoIP| WHO{Whois API}
 ```
 ---
 
