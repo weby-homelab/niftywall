@@ -120,9 +120,17 @@ async def check_auth_middleware(request: Request, call_next):
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, user: str = Depends(get_current_user)):
     import socket
+    import os
     hostname = socket.gethostname()
+    version_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION")
+    try:
+        with open(version_file, "r") as f:
+            app_version = f.read().strip()
+    except FileNotFoundError:
+        app_version = "unknown"
+        
     return templates.TemplateResponse(
-        request=request, name="index.html", context={"username": user, "hostname": hostname}
+        request=request, name="index.html", context={"username": user, "hostname": hostname, "app_version": app_version}
     )
 
 @app.get("/api/system/status")
