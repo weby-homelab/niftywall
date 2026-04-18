@@ -125,5 +125,5 @@ docker compose up -d
 ---
 <p align="center">
   Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
-  <strong>✦ 2026 Weby Homelab ✦</strong>
+  <strong>© 2026 Weby Homelab</strong>
 </p>
