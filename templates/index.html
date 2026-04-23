@@ -709,10 +709,10 @@
             if (!ip || ip.includes('/') || ip.includes('*') || ip === '127.0.0.1' || ip.startsWith('100.')) return null;
             if (geoCache.has(ip)) return geoCache.get(ip);
             try {
-                const res = await fetch(`https://ipapi.co/${ip}/json/`);
+                const res = await fetch(`/api/whois/${ip}`);
                 const data = await res.json();
-                if (data.country_name) {
-                    const info = { country: data.country_name, code: data.country_code.toLowerCase(), city: data.city };
+                if (data.status === 'success') {
+                    const info = { country: data.country, code: data.countryCode.toLowerCase(), city: data.city };
                     geoCache.set(ip, info);
                     return info;
                 }
@@ -964,6 +964,9 @@
                 } catch (e) { console.warn("F2B fetch failed", e); }
             }
 
+            const allIPsForGeo = [...new Set(allIPs)];
+            await Promise.all(allIPsForGeo.map(ip => getGeo(ip)));
+
             for (const sObj of sets) {
                 const s = sObj.set;
                 const section = document.createElement('div');
@@ -980,10 +983,8 @@
                     
                     let flag = '';
                     if (typeof val === 'string' && !val.includes('/') && !val.includes('{')) {
-                        try {
-                            const geo = await getGeo(val);
-                            if (geo) flag = `<img src="https://flagcdn.com/w20/${geo.code}.png" class="inline mr-2 w-4 h-3 shadow-sm"> <span class="text-xs text-gray-500">${geo.city}, ${geo.country}</span>`;
-                        } catch(e) {}
+                        const geo = geoCache.get(val);
+                        if (geo) flag = `<img src="https://flagcdn.com/w20/${geo.code}.png" class="inline mr-2 w-4 h-3 shadow-sm"> <span class="text-xs text-gray-500">${geo.city}, ${geo.country}</span>`;
                     }
                     
                     let banBadge = '';

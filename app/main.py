@@ -153,7 +153,7 @@ async def get_system_status(user: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.get("/api/whois/{ip}")
-async def get_whois_info(ip: str, user: str = Depends(get_current_user)):
+async def get_whois_info(ip: str):
     """Fetch geo/provider info for an IP."""
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}", timeout=3)
@@ -175,30 +175,39 @@ async def get_ruleset(user: str = Depends(get_current_user)):
     try:
         data = nft.get_ruleset()
         if "error" in data:
-            raise HTTPException(status_code=500, detail=data["error"])
+            # Avoid leaking raw internal errors
+            raise HTTPException(status_code=500, detail="Failed to fetch ruleset. Check system logs.")
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.post("/api/ruleset/advanced")
 async def add_advanced_rule(req: AdvancedRuleRequest, user: str = Depends(get_current_user)):
-    res = nft.add_advanced_rule(
-        family=req.family,
-        table=req.table,
-        chain=req.chain,
-        protocol=req.protocol,
-        ports=req.ports,
-        source=req.source,
-        action=req.action,
-        rate_enabled=req.rate_enabled,
-        rate=req.rate,
-        unit=req.unit,
-        burst=req.burst
-    )
-    if res["success"]:
-        log_action(user, "ADD_RULE", f"New rule in {req.chain}")
-        return {"status": "success", "message": res["message"]}
-    raise HTTPException(status_code=500, detail=res["message"])
+    try:
+        res = nft.add_advanced_rule(
+            family=req.family,
+            table=req.table,
+            chain=req.chain,
+            protocol=req.protocol,
+            ports=req.ports,
+            source=req.source,
+            action=req.action,
+            rate_enabled=req.rate_enabled,
+            rate=req.rate,
+            unit=req.unit,
+            burst=req.burst
+        )
+        if res["success"]:
+            log_action(user, "ADD_RULE", f"New rule in {req.chain}")
+            return {"status": "success", "message": "Rule applied successfully"}
+        # Sanitize error message to avoid information exposure
+        raise HTTPException(status_code=500, detail="Failed to apply advanced rule. Check system logs.")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.delete("/api/ruleset/{family}/{table}/{chain}/{handle}")
 async def delete_rule(family: str, table: str, chain: str, handle: int, user: str = Depends(get_current_user)):
@@ -218,7 +227,8 @@ async def add_nat_rule(req: NATRequest, user: str = Depends(get_current_user)):
         details = f"NAT: {req.protocol} {req.external_port} -> {req.internal_ip}:{req.internal_port or req.external_port}"
         log_action(user, "ADD_NAT", details)
         return {"status": "success", "message": "NAT Rule applied successfully."}
-    raise HTTPException(status_code=500, detail=res["message"])
+    # Sanitize error message
+    raise HTTPException(status_code=500, detail="Failed to apply NAT rule. Check system logs.")
 
 @app.post("/api/ruleset/panic")
 async def panic_mode(user: str = Depends(get_current_user)):

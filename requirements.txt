@@ -1,10 +1,10 @@
 fastapi==0.111.0
 uvicorn[standard]==0.27.1
-jinja2==3.1.5
-python-multipart==0.0.12
-PyJWT==2.9.0
+jinja2==3.1.6
+python-multipart==0.0.26
+PyJWT==2.12.0
 bcrypt==4.1.2
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 psutil==5.9.8
-requests==2.32.2
+requests==2.33.0
 gunicorn==22.0.0
