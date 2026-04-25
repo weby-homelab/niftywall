@@ -24,6 +24,16 @@
 
 ---
 
+## 📸 Інтерфейс
+
+<p align="center">
+  <img src="assets/NiFTyWall-Admin-1.png" width="800" alt="NiftyWall Dashboard 1"><br><br>
+  <img src="assets/NiFTyWall-Admin-2.png" width="800" alt="NiftyWall Dashboard 2"><br><br>
+  <img src="assets/NiFTyWall-Admin-3.png" width="800" alt="NiftyWall Dashboard 3">
+</p>
+
+---
+
 ## 🧩 Архітектура системи
 
 ```mermaid
