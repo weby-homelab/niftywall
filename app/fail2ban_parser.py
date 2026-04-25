@@ -13,10 +13,12 @@ class Fail2BanParser:
 
     def unban_ip(self, ip: str, jail: str = None) -> bool:
         """Unbans an IP using fail2ban-client."""
-        if not re.match(r"^[0-9a-fA-F\.\:]+$", ip):
+        match_ip = re.match(r"^[0-9a-fA-F\.\:]+$", ip)
+        if not match_ip:
             print(f"Invalid IP format: {ip}")
             return False
-            
+        safe_ip = match_ip.group(0)
+
         f2b_client = "/usr/bin/fail2ban-client"
         if not os.path.exists(f2b_client):
             f2b_client = "fail2ban-client" # fallback to PATH
@@ -24,23 +26,24 @@ class Fail2BanParser:
         try:
             # Most modern versions support global unban
             # Subprocess.run with list is safe from shell injection, but we validate ip anyway
-            cmd = [f2b_client, "unban", ip]
+            cmd = [f2b_client, "unban", safe_ip]
             subprocess.run(cmd, capture_output=True, check=True)
             return True
         except Exception as e:
             # Fallback to jail-specific unban if provided
             if jail:
-                if not re.match(r"^[a-zA-Z0-9\-\_]+$", jail):
+                match_jail = re.match(r"^[a-zA-Z0-9\-\_]+$", jail)
+                if not match_jail:
                     print(f"Invalid jail format: {jail}")
                     return False
+                safe_jail = match_jail.group(0)
                 try:
-                    cmd = [f2b_client, "set", jail, "unbanip", ip]
+                    cmd = [f2b_client, "set", safe_jail, "unbanip", safe_ip]
                     subprocess.run(cmd, capture_output=True, check=True)
                     return True
                 except: pass
             print(f"Error unbanning IP {ip}: {e}")
             return False
-
     def get_ban_info_for_ips(self, ips: list) -> Dict[str, dict]:
         """
         Scans the log file backwards (efficiently) if exists.
