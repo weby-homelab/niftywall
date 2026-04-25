@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="25" fill="#4f46e5" />
-  <text x="50" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="68" font-weight="900" fill="white" text-anchor="middle">N</text>
+  <rect width="100" height="100" rx="24" fill="#4f46e5" />
+  <path d="M30 72 V28 L70 72 V28" stroke="white" stroke-width="12" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
 </svg>
