@@ -73,7 +73,7 @@
         ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
     </style>
-    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg?v=2">
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
     <div class="container mx-auto px-4 py-6 md:py-12 max-w-6xl">
@@ -81,9 +81,7 @@
             <div class="flex items-center justify-between w-full md:w-auto">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-                        <div class="w-10 h-10 md:w-12 md:h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                            <i class="fas fa-shield-halved"></i>
-                        </div>
+                        <img src="/static/logo.svg?v=2" alt="NiftyWall" class="w-10 h-10 md:w-12 md:h-12 rounded-xl shadow-lg shadow-indigo-500/20">
                         NiftyWall <span class="text-xs font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full translate-y-[-2px]">v{{ app_version }}</span>
                     </h1>
                     <p class="text-gray-400 mt-1 text-sm md:text-base">Smart Linux Firewall Management</p>
