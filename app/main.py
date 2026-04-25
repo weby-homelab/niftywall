@@ -19,6 +19,9 @@ from app.db import get_db
 
 app = FastAPI(title="NiftyWall")
 
+# Mount Static Files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Include Authentication Router
 app.include_router(auth_router)
 
