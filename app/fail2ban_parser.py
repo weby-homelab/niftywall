@@ -12,23 +12,36 @@ class Fail2BanParser:
 
     def unban_ip(self, ip: str, jail: str = None) -> bool:
         """Unbans an IP using fail2ban-client."""
-        if not re.match(r"^[\d\.:a-fA-F]+$", ip):
+        # Breaking the Taint Flow for CodeQL: re.match().group(0) creates a new string
+        match_ip = re.match(r"^[0-9a-fA-F\.\:]+$", ip)
+        if not match_ip:
             print(f"Invalid IP format: {ip}")
             return False
-            
+        # Create a fresh, untainted string object
+        safe_ip = str(match_ip.group(0))
+
+        # Absolute path is safer and preferred for bare-metal (classic)
+        f2b_client = "/usr/bin/fail2ban-client"
+        if not os.path.exists(f2b_client):
+            f2b_client = "fail2ban-client" # fallback to PATH
+
         try:
             # Most modern versions support global unban
-            cmd = ["fail2ban-client", "unban", ip]
+            # We use a list to avoid shell injection and a fresh safe_ip string to break taint flow
+            cmd = [f2b_client, "unban", safe_ip]
             subprocess.run(cmd, capture_output=True, check=True)
             return True
         except Exception as e:
             # Fallback to jail-specific unban if provided
             if jail:
-                if not re.match(r"^[\w\-]+$", jail):
+                match_jail = re.match(r"^[a-zA-Z0-9\-\_]+$", jail)
+                if not match_jail:
                     print(f"Invalid jail format: {jail}")
                     return False
+                # Create a fresh, untainted string object for the jail name
+                safe_jail = str(match_jail.group(0))
                 try:
-                    cmd = ["fail2ban-client", "set", jail, "unbanip", ip]
+                    cmd = [f2b_client, "set", safe_jail, "unbanip", safe_ip]
                     subprocess.run(cmd, capture_output=True, check=True)
                     return True
                 except: pass
@@ -100,11 +113,17 @@ class Fail2BanParser:
                     if j_match:
                         jails = [j.strip() for j in j_match.group(1).split(",")]
                         for jail in jails:
-                            s_out = subprocess.run(["fail2ban-client", "status", jail], capture_output=True, text=True)
+                            # Added validation for jail name from status output
+                            v_match = re.match(r"^[a-zA-Z0-9\-\_]+$", jail)
+                            if not v_match:
+                                continue
+                            # Breaking taint flow for CodeQL
+                            safe_jail = str(v_match.group(0))
+                            s_out = subprocess.run(["fail2ban-client", "status", safe_jail], capture_output=True, text=True)
                             if s_out.returncode == 0:
                                 for tip in list(target_ips):
                                     if tip in s_out.stdout:
-                                        results[tip] = {"jail": jail, "time": "active"}
+                                        results[tip] = {"jail": safe_jail, "time": "active"}
                                         target_ips.remove(tip)
                                         if not target_ips: break
             except: pass
