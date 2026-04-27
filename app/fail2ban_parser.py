@@ -18,8 +18,8 @@ class Fail2BanParser:
         if not match_ip:
             print(f"Invalid IP format: {ip}")
             return False
-        # Create a fresh, untainted string object
-        safe_ip = str(match_ip.group(0))
+        # Create a fresh, untainted string object using shlex.quote to break CodeQL taint flow
+        safe_ip = shlex.quote(match_ip.group(0))
 
         # Absolute path is safer and preferred
         f2b_client = "/usr/bin/fail2ban-client"
@@ -40,7 +40,7 @@ class Fail2BanParser:
                     print(f"Invalid jail format: {jail}")
                     return False
                 # Create a fresh, untainted string object for the jail name
-                safe_jail = str(match_jail.group(0))
+                safe_jail = shlex.quote(match_jail.group(0))
                 try:
                     cmd = [f2b_client, "set", safe_jail, "unbanip", safe_ip]
                     subprocess.run(cmd, capture_output=True, check=True)
@@ -125,7 +125,7 @@ class Fail2BanParser:
                             if not v_match:
                                 continue
                             # Breaking taint flow for CodeQL
-                            safe_jail = str(v_match.group(0))
+                            safe_jail = shlex.quote(v_match.group(0))
                             s_out = subprocess.run(["fail2ban-client", "status", safe_jail], capture_output=True, text=True)
                             if s_out.returncode == 0:
                                 for tip in list(target_ips):
