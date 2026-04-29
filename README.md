@@ -133,7 +133,9 @@ docker compose up -d
 - **Рішення:** Рекомендується виконати `systemctl disable --now ufw` або `firewalld` перед використанням NiftyWall. Якщо вам потрібен GUI саме для них, використовуйте: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) або [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
 
 ---
+
+<br>
 <p align="center">
-  Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
-  <strong>© 2026 Weby Homelab</strong>
+  Built in Ukraine under air raid sirens &amp; blackouts ⚡<br>
+  &copy; 2026 Weby Homelab
 </p>

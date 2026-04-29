@@ -133,7 +133,9 @@ NiftyWall is built on the principle of **absolute autonomy**. By utilizing an is
 - **Solution:** It is recommended to execute `systemctl disable --now ufw` or `firewalld` before using NiftyWall. If you specifically need a GUI for them, use: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
 
 ---
+
+<br>
 <p align="center">
-  Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
-  <strong>© 2026 Weby Homelab</strong>
+  Built in Ukraine under air raid sirens &amp; blackouts ⚡<br>
+  &copy; 2026 Weby Homelab
 </p>
