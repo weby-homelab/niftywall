@@ -133,7 +133,9 @@ systemctl enable --now niftywall
 Для швидкого запуску в ізольованому середовищі використовуйте гілку [main](https://github.com/weby-homelab/niftywall/tree/main) (Docker Edition).
 
 ---
+
+<br>
 <p align="center">
-  Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
-  <strong>✦ 2026 Weby Homelab ✦</strong>
+  Built in Ukraine under air raid sirens &amp; blackouts ⚡<br>
+  &copy; 2026 Weby Homelab
 </p>
