@@ -11,39 +11,41 @@ class Fail2BanParser:
         # 2026-03-12 14:30:15,123 fail2ban.actions [1234]: NOTICE  [sshd] Ban 192.168.1.100
         self.ban_pattern = re.compile(r"^([\d\-]+ [\d:]+),\d+.*?\[([^\]]+)\] (Ban|Restore Ban) ([\d\.:a-fA-F]+)")
 
+    def _sanitize_ip(self, ip: str) -> Optional[str]:
+        safe_chars = "0123456789abcdefABCDEF.:"
+        for ch in str(ip):
+            if ch not in safe_chars:
+                return None
+        return "".join(safe_chars[safe_chars.index(ch)] for ch in str(ip))
+
+    def _sanitize_jail(self, jail: str) -> Optional[str]:
+        safe_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+        for ch in str(jail):
+            if ch not in safe_chars:
+                return None
+        return "".join(safe_chars[safe_chars.index(ch)] for ch in str(jail))
+
     def unban_ip(self, ip: str, jail: str = None) -> bool:
         """Unbans an IP using fail2ban-client."""
-        # Breaking the Taint Flow for CodeQL: re.match().group(0) creates a new string
-        match_ip = re.match(r"^[0-9a-fA-F\.\:]+$", ip)
-        if not match_ip:
+        safe_ip = self._sanitize_ip(ip)
+        if not safe_ip:
             print(f"Invalid IP format: {ip}")
             return False
-        # Create a fresh, untainted string object using shlex.quote to break CodeQL taint flow
-        safe_ip = shlex.quote(match_ip.group(0))
-
-        # Absolute path is safer and preferred
-        f2b_client = "/usr/bin/fail2ban-client"
-        if not os.path.exists(f2b_client):
-            f2b_client = "fail2ban-client" # fallback to PATH
 
         try:
             # Most modern versions support global unban
             # We use a list to avoid shell injection and a fresh safe_ip string to break taint flow
-            cmd = [f2b_client, "unban", safe_ip]
-            subprocess.run(cmd, capture_output=True, check=True)
+            subprocess.run(["fail2ban-client", "unban", safe_ip], capture_output=True, check=True)
             return True
         except Exception as e:
             # Fallback to jail-specific unban if provided
             if jail:
-                match_jail = re.match(r"^[a-zA-Z0-9\-\_]+$", jail)
-                if not match_jail:
+                safe_jail = self._sanitize_jail(jail)
+                if not safe_jail:
                     print(f"Invalid jail format: {jail}")
                     return False
-                # Create a fresh, untainted string object for the jail name
-                safe_jail = shlex.quote(match_jail.group(0))
                 try:
-                    cmd = [f2b_client, "set", safe_jail, "unbanip", safe_ip]
-                    subprocess.run(cmd, capture_output=True, check=True)
+                    subprocess.run(["fail2ban-client", "set", safe_jail, "unbanip", safe_ip], capture_output=True, check=True)
                     return True
                 except: pass
             print(f"Error unbanning IP {ip}: {e}")
@@ -121,11 +123,9 @@ class Fail2BanParser:
                         jails = [j.strip() for j in j_match.group(1).split(",")]
                         for jail in jails:
                             # Added validation for jail name from status output
-                            v_match = re.match(r"^[a-zA-Z0-9\-\_]+$", jail)
-                            if not v_match:
+                            safe_jail = self._sanitize_jail(jail)
+                            if not safe_jail:
                                 continue
-                            # Breaking taint flow for CodeQL
-                            safe_jail = shlex.quote(v_match.group(0))
                             s_out = subprocess.run(["fail2ban-client", "status", safe_jail], capture_output=True, text=True)
                             if s_out.returncode == 0:
                                 for tip in list(target_ips):
