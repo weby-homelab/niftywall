@@ -17,6 +17,9 @@ from app.auth import auth_router, get_current_user, DATA_DIR
 from app.fail2ban_parser import Fail2BanParser
 from app.db import get_db
 
+import asyncio
+from app.panic_router import router as panic_router, auto_panic_daemon
+
 app = FastAPI(title="NiftyWall")
 
 # Mount Static Files
@@ -24,6 +27,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include Authentication Router
 app.include_router(auth_router)
+
+# Include Panic Router
+app.include_router(panic_router)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(auto_panic_daemon())
 
 # Initialize handlers
 nft = NftablesHandler()
