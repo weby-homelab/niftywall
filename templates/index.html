@@ -563,7 +563,6 @@
             if (currentTab === 'sets') fetchSets();
             if (currentTab === 'audit') fetchAudit();
             if (currentTab === 'timemachine') fetchSnapshots();
-            if (currentTab === 'panic') { loadPanicStatus(); loadPanicProcesses(); }
         }
 
         async function fetchSnapshots() {
@@ -1298,65 +1297,67 @@
         }
 
         document.addEventListener('DOMContentLoaded', refreshData);
-    </script>
-</body>
-</html>
-   external_port: parseInt(document.getElementById('nat-ext-port').value),
-                internal_ip: document.getElementById('nat-int-ip').value,
-                internal_port: parseInt(document.getElementById('nat-int-port').value) || null
-            };
 
-            if (!payload.external_port || !payload.internal_ip) {
-                showError("External port and Internal IP are required.");
-                return;
-            }
+        // --- Panic Mode Logic ---
+        let autoPanicRefreshInterval;
 
-            setLoading(true);
-            try {
-                const res = await fetch('/api/ruleset/nat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Failed to apply NAT rule');
+        document.getElementById('autoPanicToggle').addEventListener('change', async (e) => {
+            const res = await fetch('/api/panic/toggle', { method: 'POST' });
+            const data = await res.json();
+            e.target.checked = data.enabled;
+        });
+
+        async function loadPanicStatus() {
+            const res = await fetch('/api/panic/status');
+            const data = await res.json();
+            document.getElementById('autoPanicToggle').checked = data.enabled;
+        }
+
+        async function loadPanicProcesses() {
+            const res = await fetch('/api/panic/processes');
+            const data = await res.json();
+            const tbody = document.getElementById('panicProcessList');
+            tbody.innerHTML = '';
+            
+            data.processes.forEach(p => {
+                const isHighCpu = p.cpu > 80;
+                const rowClass = isHighCpu ? 'bg-yellow-900/50 text-white' : 'hover:bg-white/5 transition-colors';
+                const isFrozen = p.status === 'stopped';
                 
-                showSuccess(data.message);
-                closeNatModal();
-                fetchRules(); // This re-renders both filter and nat tables
-            } catch (err) { 
-                showError(err.message); 
-                setLoading(false); 
-            }
+                let actionBtn = `<button class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold" onclick="panicAction('freeze', ${p.pid})">❄️ Freeze</button>`;
+                if (isFrozen) {
+                    actionBtn = `<button class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold" onclick="panicAction('resume', ${p.pid})">▶️ Resume</button>`;
+                }
+                
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-700/50 last:border-0 ${rowClass}">
+                        <td class="px-6 py-4 font-mono">${p.pid}</td>
+                        <td class="px-6 py-4 font-medium">${p.name}</td>
+                        <td class="px-6 py-4">${p.cpu}%</td>
+                        <td class="px-6 py-4">${p.ram}%</td>
+                        <td class="px-6 py-4">${p.status}</td>
+                        <td class="px-6 py-4 text-right">${actionBtn}</td>
+                    </tr>
+                `;
+            });
         }
 
-        async function backupRules() {
-            setLoading(true);
-            try {
-                const res = await fetch('/api/backup', { method: 'POST' });
-                const data = await res.json();
-                if (!res.ok) throw new Error('Backup failed');
-                showSuccess(data.message);
-            } catch (err) { showError(err.message); } finally { setLoading(false); }
+        async function panicAction(action, pid) {
+            await fetch(`/api/panic/${action}/${pid}`, { method: 'POST' });
+            loadPanicProcesses();
         }
 
-        function setLoading(isLoading) {
-            document.getElementById('loading').classList.toggle('hidden', !isLoading);
-        }
-
-        function showError(msg) {
-            document.getElementById('error-msg').textContent = msg;
-            document.getElementById('error').classList.remove('hidden');
-            setTimeout(() => document.getElementById('error').classList.add('hidden'), 10000);
-        }
-
-        function showSuccess(msg) {
-            document.getElementById('success-msg').textContent = msg;
-            document.getElementById('success').classList.remove('hidden');
-            setTimeout(() => document.getElementById('success').classList.add('hidden'), 5000);
-        }
-
-        document.addEventListener('DOMContentLoaded', refreshData);
+        // Hook into tab switching to start/stop refresh
+        document.querySelectorAll('.tab-btn').forEach(tab => {
+            tab.addEventListener('click', event => {
+                if (currentTab === 'panic') {
+                    clearInterval(autoPanicRefreshInterval);
+                    autoPanicRefreshInterval = setInterval(loadPanicProcesses, 5000);
+                } else {
+                    clearInterval(autoPanicRefreshInterval);
+                }
+            });
+        });
     </script>
 </body>
 </html>
