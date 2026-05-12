@@ -99,17 +99,6 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <button id="panic-btn" onclick="panicMode()" class="flex-1 md:flex-none px-4 py-2.5 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
-                    <i class="fas fa-radiation"></i>
-                    Panic Mode
-                </button>
-                <button id="exit-panic-btn" onclick="exitPanicMode()" class="hidden flex-1 md:flex-none px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/50 text-emerald-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
-                    <i class="fas fa-shield-heart"></i>
-                    Exit Panic Mode
-                </button>
-                
-                <div class="hidden md:flex h-8 w-px bg-gray-700 mx-1"></div>
-                
                 <button onclick="refreshData()" class="hidden md:flex px-4 py-2.5 glass hover:bg-gray-800 rounded-xl transition-all text-sm font-medium text-gray-300 items-center gap-2">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
@@ -563,6 +552,7 @@
             if (currentTab === 'sets') fetchSets();
             if (currentTab === 'audit') fetchAudit();
             if (currentTab === 'timemachine') fetchSnapshots();
+            if (currentTab === 'panic') { loadPanicStatus(); loadPanicProcesses(); }
         }
 
         async function fetchSnapshots() {
@@ -1311,6 +1301,57 @@
             const res = await fetch('/api/panic/status');
             const data = await res.json();
             document.getElementById('autoPanicToggle').checked = data.enabled;
+        }
+
+        async function loadPanicProcesses() {
+            const res = await fetch('/api/panic/processes');
+            const data = await res.json();
+            const tbody = document.getElementById('panicProcessList');
+            tbody.innerHTML = '';
+            
+            data.processes.forEach(p => {
+                const isHighCpu = p.cpu > 80;
+                const rowClass = isHighCpu ? 'bg-yellow-900/50 text-white' : 'hover:bg-white/5 transition-colors';
+                const isFrozen = p.status === 'stopped';
+                
+                let actionBtn = `<button class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold" onclick="panicAction('freeze', ${p.pid})">❄️ Freeze</button>`;
+                if (isFrozen) {
+                    actionBtn = `<button class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold" onclick="panicAction('resume', ${p.pid})">▶️ Resume</button>`;
+                }
+                
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-700/50 last:border-0 ${rowClass}">
+                        <td class="px-6 py-4 font-mono">${p.pid}</td>
+                        <td class="px-6 py-4 font-medium">${p.name}</td>
+                        <td class="px-6 py-4">${p.cpu}%</td>
+                        <td class="px-6 py-4">${p.ram}%</td>
+                        <td class="px-6 py-4">${p.status}</td>
+                        <td class="px-6 py-4 text-right">${actionBtn}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function panicAction(action, pid) {
+            await fetch(`/api/panic/${action}/${pid}`, { method: 'POST' });
+            loadPanicProcesses();
+        }
+
+        // Hook into tab switching to start/stop refresh
+        document.querySelectorAll('.tab-btn').forEach(tab => {
+            tab.addEventListener('click', event => {
+                if (currentTab === 'panic') {
+                    clearInterval(autoPanicRefreshInterval);
+                    autoPanicRefreshInterval = setInterval(loadPanicProcesses, 5000);
+                } else {
+                    clearInterval(autoPanicRefreshInterval);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+').checked = data.enabled;
         }
 
         async function loadPanicProcesses() {
