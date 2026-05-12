@@ -99,6 +99,17 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <button id="safe-btn" onclick="panicMode()" class="flex-1 md:flex-none px-4 py-2.5 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
+                    <i class="fas fa-shield-virus"></i>
+                    SAFE Mode
+                </button>
+                <button id="exit-safe-btn" onclick="exitPanicMode()" class="hidden flex-1 md:flex-none px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/50 text-emerald-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
+                    <i class="fas fa-shield-heart"></i>
+                    Exit SAFE Mode
+                </button>
+                
+                <div class="hidden md:flex h-8 w-px bg-gray-700 mx-1"></div>
+
                 <button onclick="refreshData()" class="hidden md:flex px-4 py-2.5 glass hover:bg-gray-800 rounded-xl transition-all text-sm font-medium text-gray-300 items-center gap-2">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
