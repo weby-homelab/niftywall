@@ -563,6 +563,7 @@
             if (currentTab === 'sets') fetchSets();
             if (currentTab === 'audit') fetchAudit();
             if (currentTab === 'timemachine') fetchSnapshots();
+            if (currentTab === 'panic') { loadPanicStatus(); loadPanicProcesses(); }
         }
 
         async function fetchSnapshots() {
@@ -1242,6 +1243,65 @@
                 chain: "nw-prerouting",
                 protocol: document.getElementById('nat-protocol').value,
                 external_port: parseInt(document.getElementById('nat-ext-port').value),
+                internal_ip: document.getElementById('nat-int-ip').value,
+                internal_port: parseInt(document.getElementById('nat-int-port').value) || null
+            };
+
+            if (!payload.external_port || !payload.internal_ip) {
+                showError("External port and Internal IP are required.");
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const res = await fetch('/api/ruleset/nat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to apply NAT rule');
+                
+                showSuccess(data.message);
+                closeNatModal();
+                fetchRules(); // This re-renders both filter and nat tables
+            } catch (err) { 
+                showError(err.message); 
+                setLoading(false); 
+            }
+        }
+
+        async function backupRules() {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/backup', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error('Backup failed');
+                showSuccess(data.message);
+            } catch (err) { showError(err.message); } finally { setLoading(false); }
+        }
+
+        function setLoading(isLoading) {
+            document.getElementById('loading').classList.toggle('hidden', !isLoading);
+        }
+
+        function showError(msg) {
+            document.getElementById('error-msg').textContent = msg;
+            document.getElementById('error').classList.remove('hidden');
+            setTimeout(() => document.getElementById('error').classList.add('hidden'), 10000);
+        }
+
+        function showSuccess(msg) {
+            document.getElementById('success-msg').textContent = msg;
+            document.getElementById('success').classList.remove('hidden');
+            setTimeout(() => document.getElementById('success').classList.add('hidden'), 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', refreshData);
+    </script>
+</body>
+</html>
+   external_port: parseInt(document.getElementById('nat-ext-port').value),
                 internal_ip: document.getElementById('nat-int-ip').value,
                 internal_port: parseInt(document.getElementById('nat-int-port').value) || null
             };
