@@ -1,0 +1,17 @@
+table inet niftywall {
+	chain nw-input {
+		type filter hook input priority -100; policy accept;
+	}
+
+	chain nw-forward {
+		type filter hook forward priority -100; policy accept;
+	}
+
+	chain nw-prerouting {
+		type nat hook prerouting priority mangle; policy accept;
+	}
+
+	chain nw-postrouting {
+		type nat hook postrouting priority 150; policy accept;
+	}
+}

@@ -5,13 +5,13 @@ import glob
 from datetime import datetime
 from typing import Dict, Any
 
-SNAPSHOT_DIR = os.getenv("SNAPSHOT_DIR", "snapshots")
+SNAPSHOT_DIR = os.path.abspath(os.getenv("SNAPSHOT_DIR", "snapshots"))
 
 class NftablesHandler:
     def __init__(self):
         self.nft_cmd = "/usr/sbin/nft"
         if not os.path.exists(SNAPSHOT_DIR):
-            os.makedirs(SNAPSHOT_DIR)
+            os.makedirs(SNAPSHOT_DIR, mode=0o700, exist_ok=True)
         self.initialize_niftywall_table()
 
     def initialize_niftywall_table(self):
@@ -32,11 +32,16 @@ class NftablesHandler:
         """Creates a backup snapshot of ONLY the NiftyWall table."""
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            # Strictly allow only alphanumeric and underscore
             safe_action = "".join([c if c.isalnum() else "_" for c in action_name])
             filename = f"{timestamp}_{safe_action}.nft"
-            filename = os.path.basename(filename)
-            filepath = os.path.join(SNAPSHOT_DIR, filename)
             
+            # Use realpath and verify it's within SNAPSHOT_DIR
+            base_dir = os.path.realpath(SNAPSHOT_DIR)
+            filepath = os.path.realpath(os.path.join(base_dir, filename))
+            if not filepath.startswith(base_dir + os.sep):
+                raise ValueError("Path traversal detected")
+
             # Fix Flaw 1: Isolation
             result = subprocess.run(
                 [self.nft_cmd, "list", "table", "inet", "niftywall"],
@@ -47,7 +52,7 @@ class NftablesHandler:
             with open(filepath, 'w') as f:
                 f.write(result.stdout)
                 
-            snapshots = sorted(glob.glob(os.path.join(SNAPSHOT_DIR, "*.nft")))
+            snapshots = sorted(glob.glob(os.path.join(base_dir, "*.nft")))
             if len(snapshots) > 20:
                 for old_snap in snapshots[:-20]:
                     os.remove(old_snap)
@@ -59,26 +64,36 @@ class NftablesHandler:
     def list_snapshots(self) -> list:
         snapshots = []
         try:
-            files = sorted(glob.glob(os.path.join(SNAPSHOT_DIR, "*.nft")), reverse=True)
+            base_dir = os.path.realpath(SNAPSHOT_DIR)
+            files = sorted(glob.glob(os.path.join(base_dir, "*.nft")), reverse=True)
             for file in files:
                 basename = os.path.basename(file)
                 parts = basename.replace(".nft", "").split("_", 2)
                 if len(parts) >= 3:
                     date_str, time_str, action = parts[0], parts[1], parts[2]
-                    dt = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
-                    snapshots.append({
-                        "filename": basename,
-                        "timestamp": dt.isoformat(),
-                        "action": action.replace("_", " ")
-                    })
+                    try:
+                        dt = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+                        snapshots.append({
+                            "filename": basename,
+                            "timestamp": dt.isoformat(),
+                            "action": action.replace("_", " ")
+                        })
+                    except ValueError: continue
         except Exception as e:
             pass
         return snapshots
 
     def restore_snapshot(self, filename: str) -> bool:
         """Restores ONLY the NiftyWall table from a snapshot."""
-        filename = os.path.basename(filename)
-        filepath = os.path.join(SNAPSHOT_DIR, filename)
+        # Force filename to be just a basename to prevent traversal
+        safe_filename = os.path.basename(filename)
+        base_dir = os.path.realpath(SNAPSHOT_DIR)
+        filepath = os.path.realpath(os.path.join(base_dir, safe_filename))
+        
+        # Verify filepath is still within SNAPSHOT_DIR
+        if not filepath.startswith(base_dir + os.sep):
+            return False
+            
         if not os.path.exists(filepath): return False
         try:
             # Fix Flaw 1: Isolation

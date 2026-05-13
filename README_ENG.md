@@ -20,7 +20,27 @@
 
 *Making Linux Firewalls Transparent, Smart, and Beautiful.*
 
-**NiftyWall** is a professional web dashboard for managing the nftables firewall. In the v3.0.2 update, the project underwent a full audit to achieve Enterprise-grade stability. This edition (`classic`) is optimized to run directly on the host system, providing maximum performance and direct access to the kernel's Netlink API.
+**NiftyWall** is a professional web dashboard for managing the nftables firewall. In the v3.2.0 update, the project underwent a full audit to achieve Enterprise-grade stability and security. This edition (`classic`) is optimized for direct execution on the host system, providing maximum performance and direct access to the kernel's Netlink API.
+
+---
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="NiFTyWall-Admin_1.png" width="800" alt="NiftyWall Dashboard 1"><br><br>
+  <img src="NiFTyWall-Admin_2.png" width="800" alt="NiftyWall Dashboard 2"><br><br>
+  <img src="NiFTyWall-Admin_3.png" width="800" alt="NiftyWall Dashboard 3"><br><br>
+  <img src="NiFTyWall-Admin_4.png" width="800" alt="NiftyWall Dashboard 4"><br><br>
+  <img src="NiFTyWall-Admin_5.png" width="800" alt="NiftyWall Dashboard 5"><br><br>
+  <img src="NiFTyWall-Admin_6.png" width="800" alt="NiftyWall Dashboard 6">
+</p>
+
+---
+
+## ❄️ Panic Mode & SAFE Mode
+
+- **❄️ Panic Mode (Process Freezing):** Intelligent resource monitoring. If the system detects abnormal CPU or RAM usage, you can freeze (`SIGSTOP`) malicious processes with a single click. Frozen processes are automatically pinned to the top of the monitor, releasing resources without a full `kill`, preserving their state for analysis.
+- **🛡️ SAFE Mode (Emergency Lockdown):** The Panic Mode button activates a SAFE Mode for the firewall. This instantly flushes all current rules and applies a "sterile" configuration, allowing traffic only through trusted ports (e.g., SSH) and interfaces (Tailscale/Local). This is your "emergency brake" during an active attack.
 
 ---
 
@@ -71,18 +91,18 @@ Optimized for operation using Systemd and Uvicorn on pure Linux.
 - **fail2ban** package (for log analysis)
 - **root** or **sudo** privileges
 
-### 2. Step-by-Step Setup
+### 2. Step-by-Step Launch
 ```bash
 # Clone the repository
 git clone -b classic https://github.com/weby-homelab/niftywall.git /opt/niftywall
 cd /opt/niftywall
 
-# Setup Python environment
+# Python setup
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Configure environment
+# Environment setup
 cp .env.example .env
 # Generate SECRET_KEY: openssl rand -hex 32
 ```
@@ -110,30 +130,32 @@ systemctl enable --now niftywall
 
 ---
 
-## 📋 Detailed System Requirements and Environments
+## 📋 Detailed System Requirements and Compatibility (Environments)
 
 ### 🟢 1. Ideal Environment (Native Bare Metal / Cloud VPS)
 *Transparent kernel management without intermediaries.*
-- **How it works:** NiftyWall initializes the `inet niftywall` table in the `nftables` stack. It uses `filter` type for `input` and `forward` chains with **priority -100**, allowing packet processing at early stages of the network stack.
+- **How it works:** NiftyWall initializes the `inet niftywall` table in the `nftables` stack. It uses the `filter` type for the `input` and `forward` chains with a priority of **-100**, allowing packet processing at the early stages of the network stack.
 - **Features:** Highest rule processing speed and 100% predictability. No rule will be ignored by third-party services.
 
 ### 🟡 2. Mixed Environment (Servers with Docker / LXC / KVM)
 *Harmonious coexistence with containerization.*
-- **"Shield-First" Concept:** Thanks to **priority -100**, NiftyWall becomes the "first line of defense." Packets hit your rules **BEFORE** they are routed to the `DOCKER-USER` or `FORWARD` chains of the Docker package manager.
-- **Table Isolation:** Operating in its own namespace (`table inet niftywall`) eliminates the risk of accidentally deleting Docker rules during configuration updates.
+- **"Shield-First" Concept:** Due to the **-100** priority, NiftyWall becomes the "first line" of defense. Packets hit your rules **BEFORE** they are directed to the `DOCKER-USER` or `FORWARD` chains of the Docker package manager.
+- **Table Isolation:** Working in its own namespace (`table inet niftywall`) eliminates the risk of accidentally deleting Docker rules when updating the configuration.
 
-### 🔴 3. Hostile Environment (UFW or Firewalld active)
-*Risk of conflicts and rule "shadowing".*
-- **The Problem:** Since `nftables` allows multiple tables to work in parallel, a packet must be allowed in **both** systems simultaneously. This creates situations where NiftyWall allows traffic, but a legacy manager blocks it "in the shadow."
-- **Solution:** It is recommended to execute `systemctl disable --now ufw` or `firewalld` before activating NiftyWall. If you specifically need a GUI for them, use: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
+### 🔴 3. Hostile Environment (UFW or Firewalld)
+*Risk of conflicts and "shadowing" of rules.*
+- **Problem:** Since `nftables` allows the parallel operation of several tables, a packet must be allowed **in both** systems simultaneously. This creates situations where NiftyWall allows traffic, but the legacy manager blocks it "in the shadow".
+- **Solution:** It is recommended to run `systemctl disable --now ufw` or `firewalld` before activating NiftyWall. If you need a GUI specifically for them, use: [UFW-GUI](https://github.com/weby-homelab/ufw-gui) or [Firewalld-GUI](https://github.com/weby-homelab/firewalld-gui).
 
 ---
 
-## 📥 Other Options
+## 📋 Other options
 For rapid deployment in an isolated environment, use the [main](https://github.com/weby-homelab/niftywall/tree/main) branch (Docker Edition).
 
 ---
+
+<br>
 <p align="center">
-  Made with ❤️ in Kyiv under air raid sirens and blackouts<br>
-  <strong>✦ 2026 Weby Homelab ✦</strong>
+  Built in Ukraine under air raid sirens &amp; blackouts ⚡<br>
+  &copy; 2026 Weby Homelab
 </p>

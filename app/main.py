@@ -17,10 +17,23 @@ from app.auth import auth_router, get_current_user, DATA_DIR
 from app.fail2ban_parser import Fail2BanParser
 from app.db import get_db
 
+import asyncio
+from app.panic_router import router as panic_router, auto_panic_daemon
+
 app = FastAPI(title="NiftyWall")
+
+# Mount Static Files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include Authentication Router
 app.include_router(auth_router)
+
+# Include Panic Router
+app.include_router(panic_router)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(auto_panic_daemon())
 
 # Initialize handlers
 nft = NftablesHandler()
@@ -73,6 +86,35 @@ class AdvancedRuleRequest(BaseModel):
     rate: int = Field(0, ge=0)
     unit: str = Field("second", pattern=r'^(second|minute|hour|day)$')
     burst: int = Field(0, ge=0)
+
+class TelegramSettingsRequest(BaseModel):
+    bot_token: str = Field("", max_length=255)
+    chat_id: str = Field("", max_length=255)
+
+@app.get("/api/settings/telegram")
+async def get_telegram_settings(user: str = Depends(get_current_user)):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT value FROM settings WHERE key = 'tg_bot_token'")
+    token = c.fetchone()
+    c.execute("SELECT value FROM settings WHERE key = 'tg_chat_id'")
+    chat_id = c.fetchone()
+    conn.close()
+    return {
+        "bot_token": token[0] if token else "",
+        "chat_id": chat_id[0] if chat_id else ""
+    }
+
+@app.post("/api/settings/telegram")
+async def update_telegram_settings(settings: TelegramSettingsRequest, user: str = Depends(get_current_user)):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('tg_bot_token', ?)", (settings.bot_token,))
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('tg_chat_id', ?)", (settings.chat_id,))
+    conn.commit()
+    conn.close()
+    log_action(user, "UPDATE_SETTINGS", "Updated Telegram Alerts settings")
+    return {"status": "success", "message": "Telegram settings updated successfully."}
 
 def log_action(user: str, action: str, details: str):
     """Log administrative actions to a local SQLite database."""
@@ -153,7 +195,7 @@ async def get_system_status(user: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.get("/api/whois/{ip}")
-async def get_whois_info(ip: str, user: str = Depends(get_current_user)):
+async def get_whois_info(ip: str):
     """Fetch geo/provider info for an IP."""
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}", timeout=3)
@@ -175,30 +217,39 @@ async def get_ruleset(user: str = Depends(get_current_user)):
     try:
         data = nft.get_ruleset()
         if "error" in data:
-            raise HTTPException(status_code=500, detail=data["error"])
+            # Avoid leaking raw internal errors
+            raise HTTPException(status_code=500, detail="Failed to fetch ruleset. Check system logs.")
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.post("/api/ruleset/advanced")
 async def add_advanced_rule(req: AdvancedRuleRequest, user: str = Depends(get_current_user)):
-    res = nft.add_advanced_rule(
-        family=req.family,
-        table=req.table,
-        chain=req.chain,
-        protocol=req.protocol,
-        ports=req.ports,
-        source=req.source,
-        action=req.action,
-        rate_enabled=req.rate_enabled,
-        rate=req.rate,
-        unit=req.unit,
-        burst=req.burst
-    )
-    if res["success"]:
-        log_action(user, "ADD_RULE", f"New rule in {req.chain}")
-        return {"status": "success", "message": res["message"]}
-    raise HTTPException(status_code=500, detail=res["message"])
+    try:
+        res = nft.add_advanced_rule(
+            family=req.family,
+            table=req.table,
+            chain=req.chain,
+            protocol=req.protocol,
+            ports=req.ports,
+            source=req.source,
+            action=req.action,
+            rate_enabled=req.rate_enabled,
+            rate=req.rate,
+            unit=req.unit,
+            burst=req.burst
+        )
+        if res["success"]:
+            log_action(user, "ADD_RULE", f"New rule in {req.chain}")
+            return {"status": "success", "message": "Rule applied successfully"}
+        # Sanitize error message to avoid information exposure
+        raise HTTPException(status_code=500, detail="Failed to apply advanced rule. Check system logs.")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.delete("/api/ruleset/{family}/{table}/{chain}/{handle}")
 async def delete_rule(family: str, table: str, chain: str, handle: int, user: str = Depends(get_current_user)):
@@ -218,7 +269,8 @@ async def add_nat_rule(req: NATRequest, user: str = Depends(get_current_user)):
         details = f"NAT: {req.protocol} {req.external_port} -> {req.internal_ip}:{req.internal_port or req.external_port}"
         log_action(user, "ADD_NAT", details)
         return {"status": "success", "message": "NAT Rule applied successfully."}
-    raise HTTPException(status_code=500, detail=res["message"])
+    # Sanitize error message
+    raise HTTPException(status_code=500, detail="Failed to apply NAT rule. Check system logs.")
 
 @app.post("/api/ruleset/panic")
 async def panic_mode(user: str = Depends(get_current_user)):

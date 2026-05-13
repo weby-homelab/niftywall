@@ -35,6 +35,10 @@ def init_db():
         attempts INTEGER,
         last_attempt REAL
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )''')
     
     # --- Migration from JSON ---
     c.execute('SELECT COUNT(*) FROM users')

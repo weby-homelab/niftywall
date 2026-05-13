@@ -73,6 +73,7 @@
         ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
     </style>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg?v=2">
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
     <div class="container mx-auto px-4 py-6 md:py-12 max-w-6xl">
@@ -80,9 +81,7 @@
             <div class="flex items-center justify-between w-full md:w-auto">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-                        <div class="w-10 h-10 md:w-12 md:h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                            <i class="fas fa-shield-halved"></i>
-                        </div>
+                        <img src="/static/logo.svg?v=2" alt="NiftyWall" class="w-10 h-10 md:w-12 md:h-12 rounded-xl shadow-lg shadow-indigo-500/20">
                         NiftyWall <span class="text-xs font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full translate-y-[-2px]">v{{ app_version }}</span>
                     </h1>
                     <p class="text-gray-400 mt-1 text-sm md:text-base">Smart Linux Firewall Management</p>
@@ -100,17 +99,17 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <button id="panic-btn" onclick="panicMode()" class="flex-1 md:flex-none px-4 py-2.5 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
-                    <i class="fas fa-radiation"></i>
-                    Panic Mode
+                <button id="safe-btn" onclick="panicMode()" class="flex-1 md:flex-none px-4 py-2.5 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
+                    <i class="fas fa-shield-virus"></i>
+                    SAFE Mode
                 </button>
-                <button id="exit-panic-btn" onclick="exitPanicMode()" class="hidden flex-1 md:flex-none px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/50 text-emerald-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
+                <button id="exit-safe-btn" onclick="exitPanicMode()" class="hidden flex-1 md:flex-none px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/50 text-emerald-400 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2">
                     <i class="fas fa-shield-heart"></i>
-                    Exit Panic Mode
+                    Exit SAFE Mode
                 </button>
                 
                 <div class="hidden md:flex h-8 w-px bg-gray-700 mx-1"></div>
-                
+
                 <button onclick="refreshData()" class="hidden md:flex px-4 py-2.5 glass hover:bg-gray-800 rounded-xl transition-all text-sm font-medium text-gray-300 items-center gap-2">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
@@ -185,6 +184,12 @@
             </button>
             <button onclick="switchTab('audit')" id="tab-audit" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
                 <i class="fas fa-clipboard-list"></i> Audit
+            </button>
+            <button onclick="switchTab('panic')" id="tab-panic" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                <i class="fas fa-snowflake"></i> Panic Mode
+            </button>
+            <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                <i class="fas fa-cog"></i> Settings
             </button>
         </div>
 
@@ -377,6 +382,72 @@
             <div class="glass p-8 text-center rounded-xl text-gray-400">Audit log will be implemented in the next step.</div>
         </section>
 
+        <!-- Panic Mode Tab -->
+        <section id="content-panic" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-white">❄️ Panic Mode</h2>
+                    <p class="text-xs text-gray-500">Freeze runaway processes without killing them to preserve state.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoPanicToggle" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    <span class="ml-3 text-sm font-medium text-gray-300">Auto-Panic</span>
+                </label>
+            </div>
+            
+            <div class="glass rounded-xl overflow-hidden">
+                <div class="p-4 border-b border-gray-700/50 flex justify-between items-center bg-gray-800/30">
+                    <span class="font-medium text-gray-300">Top Processes</span>
+                    <button class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold shadow-lg" onclick="loadPanicProcesses()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-400 uppercase bg-gray-800/50 border-b border-gray-700">
+                        <tr>
+                            <th class="px-6 py-3">PID</th>
+                            <th class="px-6 py-3">Name</th>
+                            <th class="px-6 py-3">CPU %</th>
+                            <th class="px-6 py-3">RAM %</th>
+                            <th class="px-6 py-3">Status</th>
+                            <th class="px-6 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="panicProcessList">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Settings Tab -->
+        <section id="content-settings" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-white">⚙️ Settings</h2>
+                    <p class="text-xs text-gray-500">Configure global preferences and integrations.</p>
+                </div>
+            </div>
+            
+            <div class="glass p-6 rounded-xl border border-gray-700">
+                <h3 class="text-lg font-medium text-white mb-4"><i class="fab fa-telegram text-blue-400"></i> Telegram Alerts</h3>
+                <p class="text-xs text-gray-400 mb-6">Set up your Telegram bot to receive real-time notifications for firewall panics and auto-bans.</p>
+                
+                <form id="tg-settings-form" class="space-y-4" onsubmit="saveTelegramSettings(event)">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Bot Token</label>
+                        <input type="text" id="tg-bot-token" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Admin Chat ID</label>
+                        <input type="text" id="tg-chat-id" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="-1001234567890">
+                    </div>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-lg">Save Settings</button>
+                </form>
+            </div>
+        </section>
+
         <footer class="mt-12 text-center text-sm text-gray-500 pb-8">
             &copy; 2026 <a href="https://github.com/weby-homelab/niftywall" target="_blank" class="hover:text-emerald-400 transition-colors">Weby Homelab</a>. Running on {{ hostname }}
         </footer>
@@ -558,12 +629,46 @@
             setInterval(fetchSystemStatus, 10000);
             fetchSystemStatus();
         }, 500);
-
         async function refreshData() {
             if (currentTab === 'rules' || currentTab === 'nat') fetchRules();
             if (currentTab === 'sets') fetchSets();
             if (currentTab === 'audit') fetchAudit();
             if (currentTab === 'timemachine') fetchSnapshots();
+            if (currentTab === 'panic') { loadPanicStatus(); loadPanicProcesses(); }
+            if (currentTab === 'settings') { loadTelegramSettings(); }
+        }
+
+        async function loadTelegramSettings() {
+            try {
+                const res = await fetch('/api/settings/telegram');
+                const data = await res.json();
+                document.getElementById('tg-bot-token').value = data.bot_token;
+                document.getElementById('tg-chat-id').value = data.chat_id;
+            } catch (err) { showError("Failed to load Telegram settings"); }
+        }
+
+        async function saveTelegramSettings(e) {
+            e.preventDefault();
+            const payload = {
+                bot_token: document.getElementById('tg-bot-token').value,
+                chat_id: document.getElementById('tg-chat-id').value
+            };
+
+            setLoading(true);
+            try {
+                const res = await fetch('/api/settings/telegram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save settings');
+                showSuccess(data.message);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                setLoading(false);
+            }
         }
 
         async function fetchSnapshots() {
@@ -709,10 +814,10 @@
             if (!ip || ip.includes('/') || ip.includes('*') || ip === '127.0.0.1' || ip.startsWith('100.')) return null;
             if (geoCache.has(ip)) return geoCache.get(ip);
             try {
-                const res = await fetch(`https://ipapi.co/${ip}/json/`);
+                const res = await fetch(`/api/whois/${ip}`);
                 const data = await res.json();
-                if (data.country_name) {
-                    const info = { country: data.country_name, code: data.country_code.toLowerCase(), city: data.city };
+                if (data.status === 'success') {
+                    const info = { country: data.country, code: data.countryCode.toLowerCase(), city: data.city };
                     geoCache.set(ip, info);
                     return info;
                 }
@@ -964,6 +1069,9 @@
                 } catch (e) { console.warn("F2B fetch failed", e); }
             }
 
+            const allIPsForGeo = [...new Set(allIPs)];
+            await Promise.all(allIPsForGeo.map(ip => getGeo(ip)));
+
             for (const sObj of sets) {
                 const s = sObj.set;
                 const section = document.createElement('div');
@@ -980,10 +1088,8 @@
                     
                     let flag = '';
                     if (typeof val === 'string' && !val.includes('/') && !val.includes('{')) {
-                        try {
-                            const geo = await getGeo(val);
-                            if (geo) flag = `<img src="https://flagcdn.com/w20/${geo.code}.png" class="inline mr-2 w-4 h-3 shadow-sm"> <span class="text-xs text-gray-500">${geo.city}, ${geo.country}</span>`;
-                        } catch(e) {}
+                        const geo = geoCache.get(val);
+                        if (geo) flag = `<img src="https://flagcdn.com/w20/${geo.code}.png" class="inline mr-2 w-4 h-3 shadow-sm"> <span class="text-xs text-gray-500">${geo.city}, ${geo.country}</span>`;
                     }
                     
                     let banBadge = '';
@@ -1297,6 +1403,72 @@
         }
 
         document.addEventListener('DOMContentLoaded', refreshData);
+
+        // --- Panic Mode Logic ---
+        let autoPanicRefreshInterval;
+
+        document.getElementById('autoPanicToggle').addEventListener('change', async (e) => {
+            const res = await fetch('/api/panic/toggle', { method: 'POST' });
+            const data = await res.json();
+            e.target.checked = data.enabled;
+        });
+
+        async function loadPanicStatus() {
+            const res = await fetch('/api/panic/status');
+            const data = await res.json();
+            document.getElementById('autoPanicToggle').checked = data.enabled;
+        }
+
+        async function loadPanicProcesses() {
+            const res = await fetch('/api/panic/processes');
+            const data = await res.json();
+            const tbody = document.getElementById('panicProcessList');
+            tbody.innerHTML = '';
+            
+            data.processes.forEach(p => {
+                const isFrozen = p.status === 'stopped';
+                const isHighCpu = p.cpu > 80;
+                let rowClass = 'hover:bg-white/5 transition-colors';
+                if (isFrozen) {
+                    rowClass = 'bg-blue-900/50 text-blue-100 border-l-4 border-blue-500';
+                } else if (isHighCpu) {
+                    rowClass = 'bg-yellow-900/50 text-white border-l-4 border-yellow-500';
+                }
+                
+                let actionBtn = `<button class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold" onclick="panicAction('freeze', ${p.pid})">❄️ Freeze</button>`;
+                if (isFrozen) {
+                    actionBtn = `<button class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold" onclick="panicAction('resume', ${p.pid})">▶️ Resume</button>`;
+                }
+                
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-700/50 last:border-0 ${rowClass}">
+                        <td class="px-6 py-4 font-mono">${p.pid}</td>
+                        <td class="px-6 py-4 font-medium">${p.name}</td>
+                        <td class="px-6 py-4">${p.cpu}%</td>
+                        <td class="px-6 py-4">${p.ram}%</td>
+                        <td class="px-6 py-4">${p.status}</td>
+                        <td class="px-6 py-4 text-right">${actionBtn}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function panicAction(action, pid) {
+            await fetch(`/api/panic/${action}/${pid}`, { method: 'POST' });
+            loadPanicProcesses();
+        }
+
+        // Hook into tab switching to start/stop refresh
+        document.querySelectorAll('.tab-btn').forEach(tab => {
+            tab.addEventListener('click', event => {
+                if (currentTab === 'panic') {
+                    clearInterval(autoPanicRefreshInterval);
+                    autoPanicRefreshInterval = setInterval(loadPanicProcesses, 5000);
+                } else {
+                    clearInterval(autoPanicRefreshInterval);
+                }
+            });
+        });
     </script>
 </body>
 </html>
