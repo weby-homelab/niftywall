@@ -39,8 +39,14 @@
 
 ## ❄️ Panic Mode & SAFE Mode
 
+- **🛡️ SAFE Mode (Emergency Lockdown):** Your digital "emergency brake" for the server. The **SAFE Mode** button activates a lockdown state:
+    1.  **Instant Snapshot**: Automatically creates a backup of all current firewall rules.
+    2.  **Sterilization**: Flushes the `niftywall` table completely — all unauthorized active connections are dropped.
+    3.  **Whitelisting**: Applies a minimal configuration allowing traffic only for critical services: SSH (22, 54322), NiftyWall (8080), and trusted interfaces (Tailscale, Loopback).
+    4.  **Isolation**: All public services (HTTP, DB, etc.) become unreachable until you exit the mode.
 - **❄️ Panic Mode (Process Freezing):** Intelligent resource monitoring. If the system detects abnormal CPU or RAM usage, you can freeze (`SIGSTOP`) malicious processes with a single click. Frozen processes are automatically pinned to the top of the monitor, releasing resources without a full `kill`, preserving their state for analysis.
-- **🛡️ SAFE Mode (Emergency Lockdown):** The **SAFE Mode** button activates an emergency lockdown for the firewall. This instantly flushes all current rules and applies a "sterile" configuration, allowing traffic only through trusted ports (e.g., SSH) and interfaces (Tailscale/Local). This is your "emergency brake" during an active attack.
+
+> **Note:** SAFE Mode manages the **network**, while Panic Mode manages **resources (processes)**.
 
 ---
 
