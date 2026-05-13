@@ -1188,9 +1188,9 @@
             try {
                 const res = await fetch('/api/ruleset/panic', { method: 'POST' });
                 if (!res.ok) throw new Error('Panic failed');
-                showSuccess("🚨 Panic Mode Activated!");
-                document.getElementById('panic-btn').classList.add('hidden');
-                document.getElementById('exit-panic-btn').classList.remove('hidden');
+                showSuccess("🚨 SAFE Mode Activated!");
+                document.getElementById('safe-btn').classList.add('hidden');
+                document.getElementById('exit-safe-btn').classList.remove('hidden');
                 refreshData();
             } catch (err) { showError(err.message); setLoading(false); }
         }
@@ -1202,8 +1202,8 @@
                 const res = await fetch('/api/ruleset/restore-panic', { method: 'POST' });
                 if (!res.ok) throw new Error('Restore failed');
                 showSuccess("🛡️ Normal Operation Restored");
-                document.getElementById('panic-btn').classList.remove('hidden');
-                document.getElementById('exit-panic-btn').classList.add('hidden');
+                document.getElementById('safe-btn').classList.remove('hidden');
+                document.getElementById('exit-safe-btn').classList.add('hidden');
                 refreshData();
             } catch (err) { showError(err.message); setLoading(false); }
         }
