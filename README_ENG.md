@@ -40,7 +40,7 @@
 ## ❄️ Panic Mode & SAFE Mode
 
 - **❄️ Panic Mode (Process Freezing):** Intelligent resource monitoring. If the system detects abnormal CPU or RAM usage, you can freeze (`SIGSTOP`) malicious processes with a single click. Frozen processes are automatically pinned to the top of the monitor, releasing resources without a full `kill`, preserving their state for analysis.
-- **🛡️ SAFE Mode (Emergency Lockdown):** The Panic Mode button activates a SAFE Mode for the firewall. This instantly flushes all current rules and applies a "sterile" configuration, allowing traffic only through trusted ports (e.g., SSH) and interfaces (Tailscale/Local). This is your "emergency brake" during an active attack.
+- **🛡️ SAFE Mode (Emergency Lockdown):** The **SAFE Mode** button activates an emergency lockdown for the firewall. This instantly flushes all current rules and applies a "sterile" configuration, allowing traffic only through trusted ports (e.g., SSH) and interfaces (Tailscale/Local). This is your "emergency brake" during an active attack.
 
 ---
 
