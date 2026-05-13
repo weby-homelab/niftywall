@@ -87,6 +87,35 @@ class AdvancedRuleRequest(BaseModel):
     unit: str = Field("second", pattern=r'^(second|minute|hour|day)$')
     burst: int = Field(0, ge=0)
 
+class TelegramSettingsRequest(BaseModel):
+    bot_token: str = Field("", max_length=255)
+    chat_id: str = Field("", max_length=255)
+
+@app.get("/api/settings/telegram")
+async def get_telegram_settings(user: str = Depends(get_current_user)):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT value FROM settings WHERE key = 'tg_bot_token'")
+    token = c.fetchone()
+    c.execute("SELECT value FROM settings WHERE key = 'tg_chat_id'")
+    chat_id = c.fetchone()
+    conn.close()
+    return {
+        "bot_token": token[0] if token else "",
+        "chat_id": chat_id[0] if chat_id else ""
+    }
+
+@app.post("/api/settings/telegram")
+async def update_telegram_settings(settings: TelegramSettingsRequest, user: str = Depends(get_current_user)):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('tg_bot_token', ?)", (settings.bot_token,))
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('tg_chat_id', ?)", (settings.chat_id,))
+    conn.commit()
+    conn.close()
+    log_action(user, "UPDATE_SETTINGS", "Updated Telegram Alerts settings")
+    return {"status": "success", "message": "Telegram settings updated successfully."}
+
 def log_action(user: str, action: str, details: str):
     """Log administrative actions to a local SQLite database."""
     timestamp = datetime.now().isoformat()

@@ -27,10 +27,20 @@
 ## 📸 Інтерфейс
 
 <p align="center">
-  <img src="assets/NiFTyWall-Admin-1.png" width="800" alt="NiftyWall Dashboard 1"><br><br>
-  <img src="assets/NiFTyWall-Admin-2.png" width="800" alt="NiftyWall Dashboard 2"><br><br>
-  <img src="assets/NiFTyWall-Admin-3.png" width="800" alt="NiftyWall Dashboard 3">
+  <img src="NiFTyWall-Admin_1.png" width="800" alt="NiftyWall Dashboard 1"><br><br>
+  <img src="NiFTyWall-Admin_2.png" width="800" alt="NiftyWall Dashboard 2"><br><br>
+  <img src="NiFTyWall-Admin_3.png" width="800" alt="NiftyWall Dashboard 3"><br><br>
+  <img src="NiFTyWall-Admin_4.png" width="800" alt="NiftyWall Dashboard 4"><br><br>
+  <img src="NiFTyWall-Admin_5.png" width="800" alt="NiftyWall Dashboard 5"><br><br>
+  <img src="NiFTyWall-Admin_6.png" width="800" alt="NiftyWall Dashboard 6">
 </p>
+
+---
+
+## ❄️ Panic Mode & SAFE Mode
+
+- **❄️ Panic Mode (Заморожування процесів):** Інтелектуальний моніторинг ресурсів. Якщо система виявляє аномальне споживання CPU або RAM, ви можете заморозити (`SIGSTOP`) шкідливі процеси одним кліком. Заморожені процеси автоматично закріплюються вгорі списку, звільняючи ресурси без повної зупинки (kill), що дозволяє зберегти їх стан для аналізу.
+- **🛡️ SAFE Mode (Екстрене блокування):** Кнопка Panic Mode активує режим SAFE Mode для фаєрвола. Це миттєво скидає всі поточні правила та застосовує "стерильну" конфігурацію, дозволяючи трафік лише через довірені порти (наприклад, SSH) та інтерфейси (Tailscale/Local). Це ваш "стоп-кран" під час активної атаки.
 
 ---
 

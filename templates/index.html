@@ -188,6 +188,9 @@
             <button onclick="switchTab('panic')" id="tab-panic" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
                 <i class="fas fa-snowflake"></i> Panic Mode
             </button>
+            <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn pb-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                <i class="fas fa-cog"></i> Settings
+            </button>
         </div>
 
         <div id="loading" class="text-center py-12 text-gray-400 hidden">
@@ -418,6 +421,33 @@
             </div>
         </section>
 
+        <!-- Settings Tab -->
+        <section id="content-settings" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-white">⚙️ Settings</h2>
+                    <p class="text-xs text-gray-500">Configure global preferences and integrations.</p>
+                </div>
+            </div>
+            
+            <div class="glass p-6 rounded-xl border border-gray-700">
+                <h3 class="text-lg font-medium text-white mb-4"><i class="fab fa-telegram text-blue-400"></i> Telegram Alerts</h3>
+                <p class="text-xs text-gray-400 mb-6">Set up your Telegram bot to receive real-time notifications for firewall panics and auto-bans.</p>
+                
+                <form id="tg-settings-form" class="space-y-4" onsubmit="saveTelegramSettings(event)">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Bot Token</label>
+                        <input type="text" id="tg-bot-token" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Admin Chat ID</label>
+                        <input type="text" id="tg-chat-id" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="-1001234567890">
+                    </div>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-lg">Save Settings</button>
+                </form>
+            </div>
+        </section>
+
         <footer class="mt-12 text-center text-sm text-gray-500 pb-8">
             &copy; 2026 <a href="https://github.com/weby-homelab/niftywall" target="_blank" class="hover:text-emerald-400 transition-colors">Weby Homelab</a>. Running on {{ hostname }}
         </footer>
@@ -605,6 +635,40 @@
             if (currentTab === 'audit') fetchAudit();
             if (currentTab === 'timemachine') fetchSnapshots();
             if (currentTab === 'panic') { loadPanicStatus(); loadPanicProcesses(); }
+            if (currentTab === 'settings') { loadTelegramSettings(); }
+        }
+
+        async function loadTelegramSettings() {
+            try {
+                const res = await fetch('/api/settings/telegram');
+                const data = await res.json();
+                document.getElementById('tg-bot-token').value = data.bot_token;
+                document.getElementById('tg-chat-id').value = data.chat_id;
+            } catch (err) { showError("Failed to load Telegram settings"); }
+        }
+
+        async function saveTelegramSettings(e) {
+            e.preventDefault();
+            const payload = {
+                bot_token: document.getElementById('tg-bot-token').value,
+                chat_id: document.getElementById('tg-chat-id').value
+            };
+
+            setLoading(true);
+            try {
+                const res = await fetch('/api/settings/telegram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save settings');
+                showSuccess(data.message);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                setLoading(false);
+            }
         }
 
         async function fetchSnapshots() {
@@ -1362,9 +1426,14 @@
             tbody.innerHTML = '';
             
             data.processes.forEach(p => {
-                const isHighCpu = p.cpu > 80;
-                const rowClass = isHighCpu ? 'bg-yellow-900/50 text-white' : 'hover:bg-white/5 transition-colors';
                 const isFrozen = p.status === 'stopped';
+                const isHighCpu = p.cpu > 80;
+                let rowClass = 'hover:bg-white/5 transition-colors';
+                if (isFrozen) {
+                    rowClass = 'bg-blue-900/50 text-blue-100 border-l-4 border-blue-500';
+                } else if (isHighCpu) {
+                    rowClass = 'bg-yellow-900/50 text-white border-l-4 border-yellow-500';
+                }
                 
                 let actionBtn = `<button class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded transition-colors text-xs font-bold" onclick="panicAction('freeze', ${p.pid})">❄️ Freeze</button>`;
                 if (isFrozen) {

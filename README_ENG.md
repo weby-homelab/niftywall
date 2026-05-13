@@ -27,10 +27,20 @@
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="assets/NiFTyWall-Admin-1.png" width="800" alt="NiftyWall Dashboard 1"><br><br>
-  <img src="assets/NiFTyWall-Admin-2.png" width="800" alt="NiftyWall Dashboard 2"><br><br>
-  <img src="assets/NiFTyWall-Admin-3.png" width="800" alt="NiftyWall Dashboard 3">
+  <img src="NiFTyWall-Admin_1.png" width="800" alt="NiftyWall Dashboard 1"><br><br>
+  <img src="NiFTyWall-Admin_2.png" width="800" alt="NiftyWall Dashboard 2"><br><br>
+  <img src="NiFTyWall-Admin_3.png" width="800" alt="NiftyWall Dashboard 3"><br><br>
+  <img src="NiFTyWall-Admin_4.png" width="800" alt="NiftyWall Dashboard 4"><br><br>
+  <img src="NiFTyWall-Admin_5.png" width="800" alt="NiftyWall Dashboard 5"><br><br>
+  <img src="NiFTyWall-Admin_6.png" width="800" alt="NiftyWall Dashboard 6">
 </p>
+
+---
+
+## ❄️ Panic Mode & SAFE Mode
+
+- **❄️ Panic Mode (Process Freezing):** Intelligent resource monitoring. If the system detects abnormal CPU or RAM usage, you can freeze (`SIGSTOP`) malicious processes with a single click. Frozen processes are automatically pinned to the top of the monitor, releasing resources without a full `kill`, preserving their state for analysis.
+- **🛡️ SAFE Mode (Emergency Lockdown):** The Panic Mode button activates a SAFE Mode for the firewall. This instantly flushes all current rules and applies a "sterile" configuration, allowing traffic only through trusted ports (e.g., SSH) and interfaces (Tailscale/Local). This is your "emergency brake" during an active attack.
 
 ---
 
