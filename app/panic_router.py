@@ -6,10 +6,51 @@ import asyncio
 from typing import List, Dict
 from app.db import get_db
 
+import requests
+import socket
+
 router = APIRouter(prefix="/api/panic", tags=["panic"])
 
 # We keep track of auto-frozen processes to avoid spamming
 FROZEN_PIDS = set()
+
+def get_public_ip():
+    try:
+        return requests.get("https://api.ipify.org", timeout=5).text
+    except:
+        return "Unknown"
+
+def send_telegram_alert(message: str):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT value FROM settings WHERE key = 'tg_bot_token'")
+        token_row = c.fetchone()
+        c.execute("SELECT value FROM settings WHERE key = 'tg_chat_id'")
+        chat_id_row = c.fetchone()
+        conn.close()
+
+        if token_row and chat_id_row:
+            token = token_row[0]
+            chat_id = chat_id_row[0]
+            
+            hostname = socket.gethostname()
+            ip = get_public_ip()
+            
+            # Append System Info to every alert
+            footer = f"\n\n🌐 <b>Host:</b> <code>{hostname}</code>\n📍 <b>IP:</b> <code>{ip}</code>"
+            
+            # Post-action stats
+            cpu = psutil.cpu_percent()
+            ram = psutil.virtual_memory().percent
+            stats = f"\n📊 <b>Post-action Status:</b> CPU: {cpu}% | RAM: {ram}%"
+            
+            full_message = message + stats + footer
+            
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            requests.post(url, json={"chat_id": chat_id, "text": full_message, "parse_mode": "HTML"}, timeout=5)
+    except Exception as e:
+        print(f"Failed to send TG alert: {e}")
 
 def get_auto_panic_state() -> bool:
     try:
@@ -111,7 +152,9 @@ async def auto_panic_daemon():
                         if top_cpu_proc and top_cpu_proc['cpu'] > 80.0 and top_cpu_proc['pid'] not in FROZEN_PIDS:
                             os.kill(top_cpu_proc['pid'], signal.SIGSTOP)
                             FROZEN_PIDS.add(top_cpu_proc['pid'])
-                            print(f"❄️ [PanicMode] Auto-Frozen {top_cpu_proc['name']} ({top_cpu_proc['pid']}) at {top_cpu_proc['cpu']}% CPU")
+                            msg = f"❄️ <b>[PanicMode] Auto-Frozen</b>\nProcess: <code>{top_cpu_proc['name']}</code> (PID: {top_cpu_proc['pid']})\nReason: {top_cpu_proc['cpu']}% CPU usage"
+                            send_telegram_alert(msg)
+                            print(msg)
                     
                     if total_ram > 95.0:
                         # Find highest RAM process
@@ -120,7 +163,9 @@ async def auto_panic_daemon():
                             os.kill(top_ram_proc['pid'], signal.SIGKILL)
                             # Remove from frozen list if it was there just in case
                             FROZEN_PIDS.discard(top_ram_proc['pid'])
-                            print(f"🚨 [PanicMode] Auto-Killed {top_ram_proc['name']} ({top_ram_proc['pid']}) at {top_ram_proc['ram']}% RAM to free memory")
+                            msg = f"🚨 <b>[PanicMode] Auto-Killed</b>\nProcess: <code>{top_ram_proc['name']}</code> (PID: {top_ram_proc['pid']})\nReason: {top_ram_proc['ram']}% RAM usage"
+                            send_telegram_alert(msg)
+                            print(msg)
         except Exception as e:
             print(f"Auto-panic error: {e}")
         await asyncio.sleep(5)
