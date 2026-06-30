@@ -7,6 +7,9 @@ from fastapi import APIRouter, HTTPException, Request, Response, Form, status, D
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
 from app.db import get_db
 
 load_dotenv()
@@ -161,3 +164,26 @@ async def logout():
     response = RedirectResponse(url="/login")
     response.delete_cookie("access_token")
     return response
+
+
+def log_action(user: str, action: str, details: str):
+    """Log administrative actions to a local SQLite database."""
+    timestamp = datetime.now().isoformat()
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('INSERT INTO audit_log (timestamp, username, action, details) VALUES (?, ?, ?, ?)',
+                  (timestamp, user, action, details))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"CRITICAL: Failed to write audit log: {e}")
+
+
+class UnbanRequest(BaseModel):
+    ip: str = Field(..., pattern=r'^[\w\.\:\-\/]+$')
+    jail: Optional[str] = Field(None, pattern=r'^[\w\-]+$')
+
+
+class UptimeHistoryRequest(BaseModel):
+    current_uptime: float

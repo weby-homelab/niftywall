@@ -9,9 +9,11 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  IMAGE_NAME: webyhomelab/niftywall
 
 jobs:
   build-and-push:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,12 +21,31 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set version
-        id: vars
-        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+      - name: Set version from VERSION file
+        id: version
+        run: echo "VERSION=$(cat VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+      - name: Determine Docker tags
+        id: tags
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TAGS="${IMAGE_NAME}:${VERSION}"
+          
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAGS="${TAGS},${IMAGE_NAME}:stable,${IMAGE_NAME}:latest"
+            echo "Building release image with tags: ${TAGS}"
+          else
+            TAGS="${TAGS},${IMAGE_NAME}:nightly"
+            echo "Building nightly image with tags: ${TAGS}"
+          fi
+          
+          echo "TAGS<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+        if: runner.os != 'Linux'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -34,33 +55,72 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.DOCKER_HUB_USERNAME }}" ] || [ -z "${{ secrets.DOCKER_HUB_TOKEN }}" ]; then
+            echo "::error::Docker Hub credentials are not configured. Set DOCKER_HUB_USERNAME and DOCKER_HUB_TOKEN secrets."
+            exit 1
+          fi
+          echo "Docker Hub credentials are configured."
 
       - name: Build and Push Docker Image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            webyhomelab/niftywall:${{ steps.vars.outputs.VERSION }}
-            webyhomelab/niftywall:Stable
-            webyhomelab/niftywall:latest
+            ${{ steps.tags.outputs.TAGS }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Verify pushed image
+        run: |
+          echo "Verifying Docker images..."
+          for tag in ${{ steps.tags.outputs.TAGS }}; do
+            echo "Pulling and verifying: $tag"
+            docker pull "$tag"
+            echo "✅ $tag verified"
+          done
 
       - name: Update Docker Hub Overview
         run: |
-          TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "webyhomelab", "password": "${{ secrets.DOCKER_HUB_TOKEN }}"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
+          TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "${{ secrets.DOCKER_HUB_USERNAME }}", "password": "${{ secrets.DOCKER_HUB_TOKEN }}"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
           
-          # 1. Очищуємо контент від HTML перемикачів та бейджів для Docker Hub
-          # Видаляємо всі <p align="center"> блоки до першого H1 заголовоку
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "::error::Failed to authenticate with Docker Hub for overview update"
+            exit 1
+          fi
+          
+          # 1. Clean README content: remove HTML toggles and badges for Docker Hub
+          # Strip all <p align="center"> blocks before the first H1 heading
           EN_CLEAN=$(sed '1,/# /d' README_ENG.md | sed '0,/# /s//# /')
           UA_CLEAN=$(sed '1,/# /d' README.md | sed '0,/# /s//# /')
           
-          # 2. Формуємо навігацію з абсолютними посиланнями на GitHub
+          # 2. Form navigation with absolute GitHub links
           NAV="[English 🇬🇧](https://github.com/weby-homelab/niftywall/blob/main/README_ENG.md) | [Українська 🇺🇦](https://github.com/weby-homelab/niftywall/blob/main/README.md)\n\n---\n"
           
-          # 3. Збираємо фінальний опис: EN перша, UA друга
-          OVERVIEW=$(echo -e "${NAV}\n${EN_CLEAN}\n\n---\n\n${UA_CLEAN}\n\n---\nMade with ❤️ in Kyiv\n✦ 2026 Weby Homelab ✦")
+          # 3. Assemble final description: EN first, UA second
+          OVERVIEW=$(printf "%s%s%s%s%s" "${NAV}" "${EN_CLEAN}" $'\n\n---\n\n' "${UA_CLEAN}" $'\n\n---\nMade with ❤️ in Kyiv\n✦ 2026 Weby Homelab ✦')
           
-          # 4. Пушимо оновлений опис
-          curl -s -X PATCH -H "Content-Type: application/json" -H "Authorization: JWT ${TOKEN}" \
+          # 4. Push updated description
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH -H "Content-Type: application/json" -H "Authorization: JWT ${TOKEN}" \
             -d "{\"full_description\": $(echo "$OVERVIEW" | jq -R -s .)}" \
-            https://hub.docker.com/v2/repositories/webyhomelab/niftywall/
+            https://hub.docker.com/v2/repositories/webyhomelab/niftywall/)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Docker Hub overview updated successfully"
+          else
+            echo "::warning::Failed to update Docker Hub overview (HTTP $HTTP_CODE)"
+            echo "Response: $(echo "$RESPONSE" | head -1)"
+          fi

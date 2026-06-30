@@ -2,7 +2,11 @@ venv/
 .env
 __pycache__/
 *.pyc
-.pytest_cache/
+*.pyo
+.env
 data/
 snapshots/
-
+*.log
+*.db
+.pytest_cache/
+*.db-journal
