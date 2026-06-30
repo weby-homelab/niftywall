@@ -1,7 +1,7 @@
 fastapi==0.111.0
 uvicorn[standard]==0.27.1
 jinja2==3.1.6
-python-multipart==0.0.27
+python-multipart==0.0.31
 PyJWT==2.12.0
 bcrypt==4.1.2
 python-dotenv==1.2.2
