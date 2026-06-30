@@ -86,7 +86,7 @@ jobs:
       - name: Verify pushed image
         run: |
           echo "Verifying Docker images..."
-          for tag in ${{ steps.tags.outputs.TAGS }}; do
+          echo "${{ steps.tags.outputs.TAGS }}" | tr ',' '\n' | while read -r tag; do
             echo "Pulling and verifying: $tag"
             docker pull "$tag"
             echo "✅ $tag verified"

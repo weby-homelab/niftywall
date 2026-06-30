@@ -21,7 +21,7 @@ class TestFail2BanParser(unittest.TestCase):
         # Test valid IP
         result = self.parser.unban_ip("192.168.1.100")
         self.assertTrue(result)
-        mock_run.assert_called_with(["/usr/bin/fail2ban-client", "unban", "192.168.1.100"], capture_output=True, check=True)
+        mock_run.assert_called_with(["fail2ban-client", "unban", "192.168.1.100"], capture_output=True, check=True)
 
     @patch('app.fail2ban_parser.subprocess.run')
     def test_unban_ip_invalid(self, mock_run):
