@@ -8,3 +8,4 @@ python-dotenv==1.2.2
 psutil==5.9.8
 requests==2.33.0
 gunicorn==22.0.0
+slowapi==0.1.9

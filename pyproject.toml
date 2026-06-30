@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "niftywall"
+version = "3.2.3"
+description = "Professional web dashboard for managing nftables firewall"
+readme = "README.md"
+license = {text = "GPLv3"}
+requires-python = ">=3.10"
+authors = [{name = "Weby Homelab"}]
+
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.27.1",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.27",
+    "PyJWT>=2.12.0",
+    "bcrypt>=4.1.2",
+    "python-dotenv>=1.2.2",
+    "psutil>=5.9.8",
+    "requests>=2.33.0",
+    "gunicorn>=22.0.0",
+    "slowapi>=0.1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "ruff>=0.4.0",
+    "mypy>=1.0",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html", "static/**/*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.mypy]
+ignore_missing_imports = true
+warn_return_any = true

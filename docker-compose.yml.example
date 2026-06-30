@@ -1,0 +1,108 @@
+# ============================================================================
+# NiftyWall Hardened - Docker Compose Configuration
+# ============================================================================
+# Copy this file to docker-compose.yml and adjust as needed.
+# Environment variables are sourced from .env (see .env.example).
+#
+# Security notes:
+#   - Uses minimal Linux capabilities (NET_ADMIN, NET_RAW, SYS_ADMIN) instead
+#     of running in full privileged mode.
+#   - no-new-privileges prevents the container from gaining additional
+#     privileges via setuid/setgid binaries.
+#   - Host network mode is required for direct access to nftables/netfilter.
+# ============================================================================
+
+services:
+  niftywall:
+    image: webyhomelab/niftywall:latest
+    container_name: niftywall
+    hostname: niftywall
+
+    # -----------------------------------------------------------------------
+    # Security: Minimal capabilities instead of full privileged mode.
+    # NET_ADMIN  - Required for nftables rule management.
+    # NET_RAW    - Required for raw socket operations.
+    # SYS_ADMIN  - Required for certain kernel network namespace operations.
+    # -----------------------------------------------------------------------
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+
+    # -----------------------------------------------------------------------
+    # Network: Host networking is required for direct access to host network
+    # interfaces and the nftables kernel subsystem.
+    # -----------------------------------------------------------------------
+    network_mode: host
+
+    # -----------------------------------------------------------------------
+    # Restart Policy: Always restart on failure to ensure firewall management
+    # is never unavailable.
+    # -----------------------------------------------------------------------
+    restart: always
+
+    # -----------------------------------------------------------------------
+    # Environment Variables: Sourced from .env file.
+    # SECRET_KEY        - JWT signing key (REQUIRED, see .env.example)
+    # PANIC_ALLOWED_PORTS    - Ports allowed through in SAFE Mode
+    # TZ                - Timezone for logs and UI
+    # DATA_DIR        - Internal data directory (default: data)
+    # SNAPSHOT_DIR    - Snapshot backups directory (default: snapshots)
+    # PANIC_ALLOWED_INTERFACES - Interfaces allowed in SAFE Mode
+    # -----------------------------------------------------------------------
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - PANIC_ALLOWED_PORTS=${PANIC_ALLOWED_PORTS:-22,80,443}
+      - TZ=${TZ:-Europe/Kyiv}
+      - DATA_DIR=${DATA_DIR:-data}
+      - SNAPSHOT_DIR=${SNAPSHOT_DIR:-snapshots}
+      - PANIC_ALLOWED_INTERFACES=${PANIC_ALLOWED_INTERFACES:-lo,tailscale0}
+
+    # -----------------------------------------------------------------------
+    # Volumes: Mount host paths needed for nftables and fail2ban integration.
+    #   - /var/log/fail2ban.log  : Read-only fail2ban log for parsing bans.
+    #   - /var/run/fail2ban      : fail2ban Unix socket for client queries.
+    #   - niftywall-data         : Named volume for SQLite DB and app state.
+    #   - niftywall-snapshots    : Named volume for firewall snapshot backups.
+    # -----------------------------------------------------------------------
+    volumes:
+      - /var/log/fail2ban.log:/var/log/fail2ban.log:ro
+      - /var/run/fail2ban:/var/run/fail2ban
+      - niftywall-data:/app/data
+      - niftywall-snapshots:/app/snapshots
+
+    # -----------------------------------------------------------------------
+    # Healthcheck: Monitors the API health endpoint to detect crashes.
+    # Uses Python urllib (no curl dependency) for slim image compatibility.
+    # -----------------------------------------------------------------------
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    # -----------------------------------------------------------------------
+    # Traefik Labels: Automatic reverse proxy configuration (optional).
+    # Uncomment and adjust the domain if using Traefik.
+    # -----------------------------------------------------------------------
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.niftywall.rule=Host(`niftywall.example.com`)"
+      - "traefik.http.routers.niftywall.tls=true"
+      - "traefik.http.services.niftywall.loadbalancer.server.port=8080"
+
+    # -----------------------------------------------------------------------
+    # Security: Prevent privilege escalation inside the container.
+    # -----------------------------------------------------------------------
+    security_opt:
+      - no-new-privileges:true
+
+# Named volumes for persistent data.
+volumes:
+  niftywall-data:
+    driver: local
+  niftywall-snapshots:
+    driver: local

@@ -1,0 +1,151 @@
+name: Release 🚀
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.result }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.version.outputs.VERSION }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Extracted version: ${VERSION}"
+
+      - name: Generate release notes
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "Generating full changelog from initial commit..."
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog from ${PREV_TAG}..."
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "${PREV_TAG}..${GITHUB_REF_NAME}" --no-merges)
+          fi
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="No changes since last release."
+          fi
+
+          # Store changelog in GitHub output
+          printf '%s\n' "$CHANGELOG" > /tmp/changelog.txt
+
+          # Escape newlines for GITHUB_OUTPUT
+          ESCAPED=$(cat /tmp/changelog.txt | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+          echo "CHANGELOG<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          # Also create a separate file for asset upload
+          cat /tmp/changelog.txt > CHANGELOG.md
+          cat CHANGELOG.md
+        shell: bash
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Read changelog from file
+            let changelog = '';
+            try {
+              changelog = fs.readFileSync('/tmp/changelog.txt', 'utf-8');
+            } catch (e) {
+              changelog = 'No changes.';
+            }
+
+            const tagName = process.env.VERSION;
+            const releaseName = `Release ${tagName}`;
+
+            console.log(`Creating release: ${releaseName}`);
+            console.log(`Tag: v${tagName}`);
+
+            const result = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${tagName}`,
+              name: releaseName,
+              body: changelog,
+              draft: false,
+              prerelease: tagName.includes('beta') || tagName.includes('rc') || tagName.includes('alpha'),
+              generate_release_notes: false
+            });
+
+            // Set outputs
+            core.setOutput('release_id', result.data.id);
+            core.setOutput('upload_url', result.data.upload_url);
+
+            console.log(`Release created successfully: ${result.data.html_url}`);
+
+      - name: Upload Changelog as Release Asset
+        if: steps.create_release.outputs.release_id != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: CHANGELOG.md
+          asset_name: CHANGELOG-${{ steps.version.outputs.VERSION }}.md
+          asset_content_type: text/markdown
+
+      - name: Upload version info as Release Asset
+        if: steps.create_release.outputs.release_id != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: VERSION
+          asset_name: VERSION
+          asset_content_type: text/plain
+
+      - name: Mark as latest release
+        if: steps.create_release.outputs.release_id != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 5
+            });
+
+            // Find the latest semver release (excluding pre-releases)
+            const semverReleases = releases.filter(r => !r.prerelease);
+            if (semverReleases.length > 0) {
+              const latest = semverReleases[0];
+              if (latest.id !== ${{ fromJSON(steps.create_release.outputs.release_id) }}) {
+                console.log(`Marking release ${latest.tag_name} as latest (not this one: v${{ steps.version.outputs.VERSION }})`);
+                await github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: latest.id,
+                  make_latest: true
+                });
+              }
+            }
