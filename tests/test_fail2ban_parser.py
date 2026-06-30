@@ -40,7 +40,7 @@ class TestFail2BanParser(unittest.TestCase):
         result = self.parser.unban_ip("192.168.1.100", jail="sshd")
         self.assertTrue(result)
         self.assertEqual(mock_run.call_count, 2)
-        mock_run.assert_called_with(["/usr/bin/fail2ban-client", "set", "sshd", "unbanip", "192.168.1.100"], capture_output=True, check=True)
+        mock_run.assert_called_with(["fail2ban-client", "set", "sshd", "unbanip", "192.168.1.100"], capture_output=True, check=True)
 
     @patch('app.fail2ban_parser.subprocess.run')
     @patch('app.fail2ban_parser.os.path.exists')
