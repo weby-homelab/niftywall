@@ -1,8 +1,9 @@
 import os
 import asyncio
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi import Limiter
@@ -19,12 +20,27 @@ from app.system_router import router as system_router
 from app.backup_router import router as backup_router
 from app.settings_router import router as settings_router
 
-app = FastAPI(title="NiftyWall", version="3.2.3")
+
+def _read_version():
+    try:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION"), "r") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return "unknown"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(auto_panic_daemon())
+    yield
+
+
+app = FastAPI(title="NiftyWall", version=_read_version(), lifespan=lifespan)
 
 # --- Rate Limiting ---
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, lambda r: r.status_code(429))
+app.add_exception_handler(RateLimitExceeded, lambda req, exc: JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"}))
 app.add_middleware(SlowAPIMiddleware)
 
 # --- Mount Static Files ---
@@ -36,11 +52,6 @@ app.include_router(rules_router)
 app.include_router(system_router)
 app.include_router(backup_router)
 app.include_router(settings_router)
-
-# --- Startup ---
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(auto_panic_daemon())
 
 # --- Common port to service mapping ---
 SERVICE_MAP = {

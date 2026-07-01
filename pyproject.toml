@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "niftywall"
-version = "3.2.3"
+version = "3.4.0"
 description = "Professional web dashboard for managing nftables firewall"
 readme = "README.md"
 license = {text = "GPLv3"}
@@ -12,16 +12,16 @@ requires-python = ">=3.10"
 authors = [{name = "Weby Homelab"}]
 
 dependencies = [
-    "fastapi>=0.111.0",
-    "uvicorn[standard]>=0.27.1",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
     "jinja2>=3.1.6",
-    "python-multipart>=0.0.27",
-    "PyJWT>=2.12.0",
-    "bcrypt>=4.1.2",
+    "python-multipart>=0.0.31",
+    "PyJWT>=2.13.0",
+    "bcrypt>=4.3.0",
     "python-dotenv>=1.2.2",
-    "psutil>=5.9.8",
-    "requests>=2.33.0",
-    "gunicorn>=22.0.0",
+    "psutil>=7.0.0",
+    "requests>=2.34.0",
+    "gunicorn>=23.0.0",
     "slowapi>=0.1.9",
 ]
 

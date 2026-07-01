@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.4.0] - 2026-07-01
+
+### Security
+- Added authentication to all `/api/panic/*` endpoints (freeze, resume, toggle, status, processes).
+- Added authentication to `/api/whois/{ip}` endpoint with IP validation (SSRF protection).
+- Replaced `dict` body parameters with strict Pydantic models in `/api/fail2ban/*` endpoints.
+- Fixed `get_db` import in `settings_router.py` (was incorrectly imported from `auth` instead of `db`).
+- Validated panic mode interface names from environment variables to prevent nftables injection.
+- Fixed broken rate-limit exception handler (`r.status_code(429)` → proper `JSONResponse`).
+
+### Changed
+- Upgraded `requests` to 2.34.2, `fastapi` to 0.115.12, `psutil` to 7.0.0, `gunicorn` to 23.0.0, `bcrypt` to 4.3.0, `uvicorn` to 0.34.3.
+- Replaced deprecated `@app.on_event("startup")` with FastAPI `lifespan` context manager.
+- Dynamic version reading from `VERSION` file in `main.py`.
+- Added explicit `permissions: contents: read` to CI workflow (fixes CodeQL alert).
+
+### Fixed
+- Removed duplicate `datetime` import in `auth.py`.
+- Removed committed `audit.log` from repository.
+- Synchronized version across `VERSION`, `pyproject.toml`, and `Dockerfile`.
+
+---
+
 ## [3.3.0] - 2026-06-30
 
 ### Added

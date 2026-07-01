@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.auth import get_current_user, log_action, get_db
+from app.auth import get_current_user, log_action
+from app.db import get_db
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 

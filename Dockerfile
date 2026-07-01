@@ -18,7 +18,7 @@ FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="NiftyWall" \
       org.opencontainers.image.description="Professional web dashboard for managing nftables firewall" \
-      org.opencontainers.image.version="3.2.3" \
+      org.opencontainers.image.version="3.4.0" \
       org.opencontainers.image.source="https://github.com/weby-homelab/niftywall" \
       org.opencontainers.image.licenses="GPLv3"
 
