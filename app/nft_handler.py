@@ -202,10 +202,16 @@ class NftablesHandler:
         # Fix Flaw 3: Configurable Panic Mode
         allowed_ports = os.getenv("PANIC_ALLOWED_PORTS", "22,8080,54322")
         allowed_ifs = os.getenv("PANIC_ALLOWED_INTERFACES", "lo,tailscale0")
+        safe_if_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
+        validated_ifs = []
+        for iface in allowed_ifs.split(','):
+            iface = iface.strip()
+            if iface and all(c in safe_if_chars for c in iface):
+                validated_ifs.append(iface)
         
         commands = ["flush chain inet niftywall nw-input"]
-        for iface in allowed_ifs.split(','):
-            commands.append(f"add rule inet niftywall nw-input iifname \"{iface.strip()}\" accept")
+        for iface in validated_ifs:
+            commands.append(f"add rule inet niftywall nw-input iifname \"{iface}\" accept")
         
         commands.append("add rule inet niftywall nw-input ct state established,related accept")
         commands.append("add rule inet niftywall nw-input icmp type echo-request accept")

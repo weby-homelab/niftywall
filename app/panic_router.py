@@ -5,6 +5,7 @@ import signal
 import asyncio
 from typing import List, Dict
 from app.db import get_db
+from app.auth import get_current_user, log_action
 
 import requests
 import socket
@@ -100,11 +101,11 @@ def get_safe_processes(limit: int = 15) -> List[Dict]:
     return procs[:limit] if limit else procs
 
 @router.get("/processes")
-async def list_processes():
+async def list_processes(user: str = Depends(get_current_user)):
     return {"processes": get_safe_processes()}
 
 @router.post("/freeze/{pid}")
-async def freeze_process(pid: int):
+async def freeze_process(pid: int, user: str = Depends(get_current_user)):
     my_pid = os.getpid()
     if pid in (0, 1) or pid == my_pid:
         raise HTTPException(status_code=400, detail="Cannot freeze critical system process.")
@@ -113,28 +114,31 @@ async def freeze_process(pid: int):
         if p.ppid() == 2:
             raise HTTPException(status_code=400, detail="Cannot freeze kernel threads.")
         os.kill(pid, signal.SIGSTOP)
+        log_action(user, "FREEZE", f"PID: {pid}")
         return {"status": "success", "message": f"Process {pid} frozen."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/resume/{pid}")
-async def resume_process(pid: int):
+async def resume_process(pid: int, user: str = Depends(get_current_user)):
     try:
         os.kill(pid, signal.SIGCONT)
         FROZEN_PIDS.discard(pid)
+        log_action(user, "RESUME", f"PID: {pid}")
         return {"status": "success", "message": f"Process {pid} resumed."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status")
-async def get_status():
+async def get_status(user: str = Depends(get_current_user)):
     return {"enabled": get_auto_panic_state()}
 
 @router.post("/toggle")
-async def toggle_auto_panic():
+async def toggle_auto_panic(user: str = Depends(get_current_user)):
     current = get_auto_panic_state()
     new_state = not current
     set_auto_panic_state(new_state)
+    log_action(user, "TOGGLE_AUTO_PANIC", f"Enabled: {new_state}")
     return {"enabled": new_state}
 
 async def auto_panic_daemon():

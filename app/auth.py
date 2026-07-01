@@ -9,7 +9,6 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
 from app.db import get_db
 
 load_dotenv()
