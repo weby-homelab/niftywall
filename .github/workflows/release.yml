@@ -88,7 +88,6 @@ jobs:
               body: changelog,
               draft: false,
               prerelease: isPrerelease,
-              make_latest: isPrerelease ? 'false' : 'true',
               generate_release_notes: false
             });
 
@@ -97,27 +96,13 @@ jobs:
 
             console.log(`Release created successfully: ${result.data.html_url}`);
 
-      - name: Upload Changelog as Release Asset
+      - name: Upload Release Assets
         if: steps.create_release.outputs.release_id != ''
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: CHANGELOG.md
-          asset_name: CHANGELOG-${{ steps.version.outputs.VERSION }}.md
-          asset_content_type: text/markdown
-
-      - name: Upload version info as Release Asset
-        if: steps.create_release.outputs.release_id != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: VERSION
-          asset_name: VERSION
-          asset_content_type: text/plain
+        run: |
+          cp CHANGELOG.md "CHANGELOG-${{ steps.version.outputs.VERSION }}.md"
+          gh release upload "v${{ steps.version.outputs.VERSION }}" CHANGELOG.md "CHANGELOG-${{ steps.version.outputs.VERSION }}.md" VERSION
 
       - name: Mark as latest release
         if: steps.create_release.outputs.release_id != ''
@@ -155,5 +140,11 @@ jobs:
                 console.log('No stable (non-prerelease, non-draft) releases found.');
               }
             } else {
-              console.log(`Current release (v${version}) is a stable release. Already marked as latest by createRelease step.`);
+              console.log(`Current release (v${version}) is a stable release. Marking as latest.`);
+              await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: releaseId,
+                make_latest: 'true'
+              });
             }
