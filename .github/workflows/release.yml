@@ -13,7 +13,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
-      release_id: ${{ steps.create_release.outputs.result }}
+      release_id: ${{ steps.create_release.outputs.release_id }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.version.outputs.VERSION }}
     steps:
@@ -33,7 +33,7 @@ jobs:
         id: changelog
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
-          
+
           if [ -z "$PREV_TAG" ]; then
             echo "Generating full changelog from initial commit..."
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
@@ -46,16 +46,11 @@ jobs:
             CHANGELOG="No changes since last release."
           fi
 
-          # Store changelog in GitHub output
           printf '%s\n' "$CHANGELOG" > /tmp/changelog.txt
-
-          # Escape newlines for GITHUB_OUTPUT
-          ESCAPED=$(cat /tmp/changelog.txt | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
           echo "CHANGELOG<<EOF" >> "$GITHUB_OUTPUT"
           echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-          # Also create a separate file for asset upload
           cat /tmp/changelog.txt > CHANGELOG.md
           cat CHANGELOG.md
         shell: bash
@@ -69,8 +64,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            
-            // Read changelog from file
+
             let changelog = '';
             try {
               changelog = fs.readFileSync('/tmp/changelog.txt', 'utf-8');
@@ -80,9 +74,11 @@ jobs:
 
             const tagName = process.env.VERSION;
             const releaseName = `Release ${tagName}`;
+            const isPrerelease = tagName.includes('beta') || tagName.includes('rc') || tagName.includes('alpha');
 
             console.log(`Creating release: ${releaseName}`);
             console.log(`Tag: v${tagName}`);
+            console.log(`Prerelease: ${isPrerelease}`);
 
             const result = await github.rest.repos.createRelease({
               owner: context.repo.owner,
@@ -91,11 +87,11 @@ jobs:
               name: releaseName,
               body: changelog,
               draft: false,
-              prerelease: tagName.includes('beta') || tagName.includes('rc') || tagName.includes('alpha'),
+              prerelease: isPrerelease,
+              make_latest: isPrerelease ? 'false' : 'true',
               generate_release_notes: false
             });
 
-            // Set outputs
             core.setOutput('release_id', result.data.id);
             core.setOutput('upload_url', result.data.upload_url);
 
@@ -126,26 +122,38 @@ jobs:
       - name: Mark as latest release
         if: steps.create_release.outputs.release_id != ''
         uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ steps.create_release.outputs.release_id }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { data: releases } = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 5
-            });
+            const releaseId = parseInt(process.env.RELEASE_ID, 10);
+            const version = process.env.VERSION;
+            const isPrerelease = version.includes('beta') || version.includes('rc') || version.includes('alpha');
 
-            // Find the latest semver release (excluding pre-releases)
-            const semverReleases = releases.filter(r => !r.prerelease);
-            if (semverReleases.length > 0) {
-              const latest = semverReleases[0];
-              if (latest.id !== ${{ fromJSON(steps.create_release.outputs.release_id) }}) {
-                console.log(`Marking release ${latest.tag_name} as latest (not this one: v${{ steps.version.outputs.VERSION }})`);
+            if (isPrerelease) {
+              console.log(`Current release (v${version}) is a prerelease. Finding latest non-prerelease to mark as latest.`);
+
+              const { data: releases } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 10
+              });
+
+              const stableReleases = releases.filter(r => !r.prerelease && !r.draft);
+              if (stableReleases.length > 0) {
+                const latest = stableReleases[0];
+                console.log(`Marking ${latest.tag_name} as latest release.`);
                 await github.rest.repos.updateRelease({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   release_id: latest.id,
-                  make_latest: true
+                  make_latest: 'true'
                 });
+              } else {
+                console.log('No stable (non-prerelease, non-draft) releases found.');
               }
+            } else {
+              console.log(`Current release (v${version}) is a stable release. Already marked as latest by createRelease step.`);
             }
