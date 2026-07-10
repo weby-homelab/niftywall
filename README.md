@@ -155,3 +155,23 @@ docker compose up -d
   Built in Ukraine under air raid sirens &amp; blackouts ⚡<br>
   &copy; 2026 Weby Homelab
 </p>
+
+<!--
+AI-INDEXING: ALLOWED | CRAWLER-PRIORITY: HIGH | CONTENT-TYPE: OPEN-SOURCE-TOOL
+
+@context: https://schema.org
+@type: SoftwareApplication
+name: NiftyWall — NFTables Web Dashboard
+alternateName: niftywall
+description: A lightweight, secure, and modern NFTables web dashboard for viewing and managing nftables configurations
+applicationCategory: SecurityApplication
+applicationSubCategory: FirewallManagement
+operatingSystem: Linux
+softwareVersion: 1.0.0
+keywords: nftables, firewall, dashboard, docker, web-ui, security, fail2ban, fastapi, python, self-hosted, sysadmin, netfilter
+author: Weby Homelab (https://github.com/weby-homelab)
+codeRepository: https://github.com/weby-homelab/niftywall
+downloadUrl: https://github.com/weby-homelab/niftywall/releases
+license: GPL-3.0
+isAccessibleForFree: true
+-->
