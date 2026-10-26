@@ -80,6 +80,11 @@ async def check_auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+@app.get("/healthz", include_in_schema=False)
+async def healthz():
+    return {"status": "ok"}
+
+
 # --- Root Page ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, user: str = Depends(get_current_user)):
