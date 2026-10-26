@@ -40,7 +40,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov ruff mypy
+          pip install pytest pytest-cov ruff mypy httpx
 
       - name: Run pytest with verbose output
         run: |
