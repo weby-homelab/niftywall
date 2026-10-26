@@ -1,0 +1,26 @@
+name: Container integration
+on:
+  pull_request:
+  push:
+    branches: [fix/issue-31-auth-router]
+permissions:
+  contents: read
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: docker build -t niftywall-ci .
+      - name: Start container with nondefault port
+        run: |
+          docker run -d --name niftywall-ci -e PORT=18080 -p 127.0.0.1:18080:18080 niftywall-ci
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:18080/healthz && exit 0; sleep 2; done
+          exit 1
+      - name: Check browser and API authentication
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/login)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/onboarding)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/)" = 307
+      - if: always()
+        run: docker logs niftywall-ci || true
