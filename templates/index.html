@@ -1028,7 +1028,7 @@
         async function fetchSets() {
             setLoading(true);
             try {
-                const res = await fetch('/api/sets');
+                const res = await fetch('/api/ruleset/sets');
                 if (!res.ok) throw new Error('Failed to fetch sets');
                 const data = await res.json();
                 await renderSets(data);
@@ -1145,7 +1145,7 @@
             if (!el) return;
             setLoading(true);
             try {
-                const res = await fetch('/api/sets/element', {
+                const res = await fetch('/api/ruleset/sets/element', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ family, table, set_name: setName, element: el })
@@ -1160,7 +1160,7 @@
             if (!confirm(`Remove ${el} from ${setName}?`)) return;
             setLoading(true);
             try {
-                const res = await fetch('/api/sets/element', {
+                const res = await fetch('/api/ruleset/sets/element', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ family, table, set_name: setName, element: el })
