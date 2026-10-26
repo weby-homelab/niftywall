@@ -19,8 +19,13 @@ jobs:
           exit 1
       - name: Check browser and API authentication
         run: |
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/login)" = 200
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/onboarding)" = 200
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/)" = 307
+          base=http://127.0.0.1:18080
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/login")" = 307
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/onboarding")" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/")" = 307
+          test "$(curl -s -o /dev/null -w '%{http_code}' -d 'username=ciadmin&password=ci-test-password' "$base/onboarding")" = 302
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/login")" = 200
+          test "$(curl -s -c /tmp/niftywall-cookies -o /dev/null -w '%{http_code}' -d 'username=ciadmin&password=ci-test-password' "$base/login")" = 302
+          test "$(curl -s -b /tmp/niftywall-cookies -o /dev/null -w '%{http_code}' "$base/")" = 200
       - if: always()
         run: docker logs niftywall-ci || true
