@@ -51,6 +51,6 @@ ENV TZ=Europe/Kyiv
 EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import os, urllib.request; port = os.getenv('PORT', '8080'); urllib.request.urlopen('http://localhost:' + port + '/api/system/status')" || exit 1
+    CMD python -c "import os, urllib.request; port = os.getenv('PORT', '8080'); urllib.request.urlopen('http://localhost:' + port + '/healthz')" || exit 1
 
-CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080", "--timeout", "120"]
+CMD ["sh", "-c", "exec gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8080} --timeout 120"]
