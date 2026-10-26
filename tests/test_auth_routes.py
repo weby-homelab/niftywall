@@ -20,6 +20,7 @@ def test_onboarding_login_and_protected_api(client):
     assert client.get("/").headers["location"] == "/login"
     assert client.get("/login").headers["location"] == "/onboarding"
     assert client.get("/onboarding").status_code == 200
+    assert client.get("/healthz").json() == {"status": "ok"}
     response = client.get("/api/system/status")
     assert response.status_code == 401
     assert response.headers["content-type"].startswith("application/json")
