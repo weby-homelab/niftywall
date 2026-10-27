@@ -18,6 +18,21 @@ jobs:
           sudo nft list set ip nw_ci large_set | head -c 512 || true
       - name: Build image
         run: docker build -t niftywall-nft-ci .
+      - name: Probe firewall capabilities on disposable host
+        run: |
+          status=0
+          docker run --rm --network host --cap-drop ALL --entrypoint /usr/sbin/nft niftywall-nft-ci -j list ruleset > /tmp/nft-unprivileged.log 2>&1 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "Host nftables read succeeded without container capabilities."
+          else
+            cat /tmp/nft-unprivileged.log
+            grep -Eiq 'operation not permitted|permission denied' /tmp/nft-unprivileged.log
+            echo "Host nftables read denied without container capabilities."
+          fi
+          trap 'sudo nft delete table ip nw_capability_probe 2>/dev/null || true' EXIT
+          docker run --rm --network host --cap-drop ALL --cap-add NET_ADMIN --entrypoint /usr/sbin/nft niftywall-nft-ci add table ip nw_capability_probe
+          sudo nft list table ip nw_capability_probe
+          echo "NET_ADMIN allowed a host firewall mutation on the disposable runner."
       - name: Start with host network in disposable runner
         run: |
           docker run -d --name niftywall-nft-ci --network host --cap-add NET_ADMIN -e PORT=18082 -e SECRET_KEY=temporary-ci-only-secret-key-123456789 niftywall-nft-ci
