@@ -42,6 +42,9 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov ruff mypy httpx
 
+      - name: Test browser rules response handling
+        run: node --test tests/frontend.test.cjs
+
       - name: Run pytest with verbose output
         run: |
           pytest tests/ -v --tb=short --color=yes
