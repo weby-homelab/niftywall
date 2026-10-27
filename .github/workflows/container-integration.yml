@@ -1,0 +1,31 @@
+name: Container integration
+on:
+  pull_request:
+  push:
+    branches: [fix/issue-31-auth-router]
+permissions:
+  contents: read
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: docker build -t niftywall-ci .
+      - name: Start container with nondefault port
+        run: |
+          docker run -d --name niftywall-ci -e PORT=18080 -e SECRET_KEY=temporary-ci-only-secret-key-123456789 -p 127.0.0.1:18080:18080 niftywall-ci
+          for i in $(seq 1 60); do curl --max-time 2 -fsS http://127.0.0.1:18080/healthz && exit 0; sleep 2; done
+          exit 1
+      - name: Check browser and API authentication
+        run: |
+          base=http://127.0.0.1:18080
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/login")" = 307
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/onboarding")" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/")" = 307
+          test "$(curl -s -o /dev/null -w '%{http_code}' -d 'username=ciadmin&password=ci-test-password' "$base/onboarding")" = 302
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/login")" = 200
+          test "$(curl -s -c /tmp/niftywall-cookies -o /dev/null -w '%{http_code}' -d 'username=ciadmin&password=ci-test-password' "$base/login")" = 302
+          test "$(curl -s -b /tmp/niftywall-cookies -o /dev/null -w '%{http_code}' "$base/")" = 200
+      - if: always()
+        run: docker logs niftywall-ci || true

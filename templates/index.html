@@ -797,11 +797,14 @@
             
             try {
                 const res = await fetch('/api/ruleset');
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Failed to fetch rules');
+                const type = res.headers.get('content-type') || '';
+                if (!type.toLowerCase().includes('application/json')) {
+                    throw new Error(`Failed to fetch rules: unexpected response (HTTP ${res.status})`);
                 }
                 const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(typeof data.detail === 'string' ? data.detail : 'Failed to fetch rules');
+                }
                 renderRules(data);
             } catch (err) {
                 showError(err.message);
@@ -1028,7 +1031,7 @@
         async function fetchSets() {
             setLoading(true);
             try {
-                const res = await fetch('/api/sets');
+                const res = await fetch('/api/ruleset/sets');
                 if (!res.ok) throw new Error('Failed to fetch sets');
                 const data = await res.json();
                 await renderSets(data);
@@ -1145,7 +1148,7 @@
             if (!el) return;
             setLoading(true);
             try {
-                const res = await fetch('/api/sets/element', {
+                const res = await fetch('/api/ruleset/sets/element', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ family, table, set_name: setName, element: el })
@@ -1160,7 +1163,7 @@
             if (!confirm(`Remove ${el} from ${setName}?`)) return;
             setLoading(true);
             try {
-                const res = await fetch('/api/sets/element', {
+                const res = await fetch('/api/ruleset/sets/element', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ family, table, set_name: setName, element: el })

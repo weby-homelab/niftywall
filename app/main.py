@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from datetime import datetime
 
-from app.auth import get_current_user
+from app.auth import get_current_user, auth_router
 from app.db import get_db
 from app.panic_router import router as panic_router, auto_panic_daemon
 from app.rules_router import router as rules_router
@@ -47,6 +47,7 @@ app.add_middleware(SlowAPIMiddleware)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # --- Include Routers ---
+app.include_router(auth_router)
 app.include_router(panic_router)
 app.include_router(rules_router)
 app.include_router(system_router)
@@ -77,6 +78,11 @@ async def check_auth_middleware(request: Request, call_next):
             return RedirectResponse(url="/login")
 
     return await call_next(request)
+
+
+@app.get("/healthz", include_in_schema=False)
+async def healthz():
+    return {"status": "ok"}
 
 
 # --- Root Page ---

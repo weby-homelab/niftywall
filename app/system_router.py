@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
 import psutil
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from typing import List, Optional
 
 from app.auth import get_current_user, log_action
@@ -43,8 +44,9 @@ async def get_whois_info(ip: str, user: str = Depends(get_current_user)):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid IP address")
     try:
-        r = requests.get(f"http://ip-api.com/json/{ip}", timeout=3)
-        return r.json()
+        def lookup():
+            return requests.get(f"http://ip-api.com/json/{ip}", timeout=3).json()
+        return await run_in_threadpool(lookup)
     except Exception:
         return {"status": "fail", "message": "WHOIS service unavailable"}
 
@@ -53,8 +55,7 @@ async def get_whois_info(ip: str, user: str = Depends(get_current_user)):
 async def get_f2b_info(req: Fail2BanInfoRequest, user: str = Depends(get_current_user)):
     from app.fail2ban_parser import Fail2BanParser
     f2b = Fail2BanParser()
-    info = f2b.get_ban_info_for_ips(req.ips)
-    return info
+    return await run_in_threadpool(f2b.get_ban_info_for_ips, req.ips)
 
 
 @router.post("/fail2ban/unban")

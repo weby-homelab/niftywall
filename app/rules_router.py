@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -52,7 +53,7 @@ nft = NftablesHandler()
 @router.get("")
 async def get_ruleset(user: str = Depends(get_current_user)):
     try:
-        data = nft.get_ruleset()
+        data = await run_in_threadpool(nft.get_ruleset)
         if "error" in data:
             raise HTTPException(status_code=500, detail="Failed to fetch ruleset. Check system logs.")
         return data
@@ -134,7 +135,7 @@ async def restore_panic(user: str = Depends(get_current_user)):
 
 @router.get("/sets")
 async def get_sets(user: str = Depends(get_current_user)):
-    data = nft.get_sets()
+    data = await run_in_threadpool(nft.get_sets)
     if "error" in data:
         raise HTTPException(status_code=500, detail=data["error"])
     return data

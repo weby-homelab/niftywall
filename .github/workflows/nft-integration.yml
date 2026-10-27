@@ -1,0 +1,44 @@
+name: nftables large ruleset integration
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  real-firewall:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Prepare disposable host nftables set
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nftables
+          python3 .github/scripts/nft_integration.py generate
+          sudo nft -f /tmp/niftywall-ci.nft
+          sudo nft list set ip nw_ci large_set | head -c 512 || true
+      - name: Build image
+        run: docker build -t niftywall-nft-ci .
+      - name: Probe firewall capabilities on disposable host
+        run: |
+          status=0
+          docker run --rm --network host --cap-drop ALL --entrypoint /usr/sbin/nft niftywall-nft-ci -j list ruleset > /tmp/nft-unprivileged.log 2>&1 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "Host nftables read succeeded without container capabilities."
+          else
+            cat /tmp/nft-unprivileged.log
+            grep -Eiq 'operation not permitted|permission denied' /tmp/nft-unprivileged.log
+            echo "Host nftables read denied without container capabilities."
+          fi
+          trap 'sudo nft delete table ip nw_capability_probe 2>/dev/null || true' EXIT
+          docker run --rm --network host --cap-drop ALL --cap-add NET_ADMIN --entrypoint /usr/sbin/nft niftywall-nft-ci add table ip nw_capability_probe
+          sudo nft list table ip nw_capability_probe
+          echo "NET_ADMIN allowed a host firewall mutation on the disposable runner."
+      - name: Start with host network in disposable runner
+        run: |
+          docker run -d --name niftywall-nft-ci --network host --cap-add NET_ADMIN -e PORT=18082 -e SECRET_KEY=temporary-ci-only-secret-key-123456789 niftywall-nft-ci
+          for i in $(seq 1 60); do curl --max-time 2 -fsS http://127.0.0.1:18082/healthz && exit 0; sleep 2; done
+          exit 1
+      - name: Verify real large ruleset through authenticated API
+        run: python3 .github/scripts/nft_integration.py verify
+      - if: always()
+        run: docker logs niftywall-nft-ci || true
