@@ -38,3 +38,26 @@ def test_onboarding_login_and_protected_api(client):
     assert client.get("/api/system/status").status_code == 200
     client.get("/logout")
     assert client.get("/api/system/status").status_code == 401
+
+
+@pytest.mark.parametrize("handler_name", ["get_ruleset", "get_sets"])
+def test_firewall_reads_do_not_block_event_loop(client, monkeypatch, handler_name):
+    """A slow nft subprocess must not stop the worker's event loop."""
+    import asyncio
+    import threading
+
+    from app import rules_router
+
+    release = threading.Event()
+
+    def slow_read():
+        return {"timed_out": not release.wait(1)}
+
+    monkeypatch.setattr(rules_router.nft, handler_name, slow_read)
+
+    async def exercise():
+        asyncio.get_running_loop().call_later(0.05, release.set)
+        result = await getattr(rules_router, handler_name)(user="alice")
+        assert result == {"timed_out": False}
+
+    asyncio.run(exercise())
