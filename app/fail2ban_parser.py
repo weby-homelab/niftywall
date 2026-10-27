@@ -128,11 +128,14 @@ class Fail2BanParser:
                                 continue
                             s_out = subprocess.run(["fail2ban-client", "status", safe_jail], capture_output=True, text=True)
                             if s_out.returncode == 0:
-                                for tip in list(target_ips):
-                                    if tip in s_out.stdout:
+                                banned_match = re.search(
+                                    r"Banned IP list:[ \t]*([^\r\n]*)", s_out.stdout
+                                )
+                                if banned_match:
+                                    banned_ips = set(banned_match.group(1).split())
+                                    for tip in target_ips.intersection(banned_ips):
                                         results[tip] = {"jail": safe_jail, "time": "active"}
                                         target_ips.remove(tip)
-                                        if not target_ips: break
             except: pass
             
         return results
