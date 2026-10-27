@@ -55,8 +55,7 @@ async def get_whois_info(ip: str, user: str = Depends(get_current_user)):
 async def get_f2b_info(req: Fail2BanInfoRequest, user: str = Depends(get_current_user)):
     from app.fail2ban_parser import Fail2BanParser
     f2b = Fail2BanParser()
-    info = f2b.get_ban_info_for_ips(req.ips)
-    return info
+    return await run_in_threadpool(f2b.get_ban_info_for_ips, req.ips)
 
 
 @router.post("/fail2ban/unban")
