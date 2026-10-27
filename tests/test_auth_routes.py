@@ -61,3 +61,25 @@ def test_firewall_reads_do_not_block_event_loop(client, monkeypatch, handler_nam
         assert result == {"timed_out": False}
 
     asyncio.run(exercise())
+
+
+def test_whois_lookup_does_not_block_event_loop(client, monkeypatch):
+    """A slow external lookup must not stop the worker's event loop."""
+    import asyncio
+    import threading
+    import requests
+    from app import system_router
+
+    release = threading.Event()
+
+    class Response:
+        def json(self):
+            return {"status": "success" if release.wait(1) else "timed_out"}
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: Response())
+
+    async def exercise():
+        asyncio.get_running_loop().call_later(0.05, release.set)
+        assert await system_router.get_whois_info("8.8.8.8", user="alice") == {"status": "success"}
+
+    asyncio.run(exercise())
